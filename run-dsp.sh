@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 Bastien Baranoff
+# SPDX-License-Identifier: GPL-3.0-or-later
 # run-dsp.sh - lance l'operateur mono (configs figees) en mode DSP.
 # ─────────────────────────────────────────────────────────────────────────────
 # Chaque composant Osmocom est lance COMME UNE APPLICATION (le binaire en

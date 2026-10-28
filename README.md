@@ -1,5 +1,7 @@
 # osmo-minioperator
 
+Copyright (C) 2026 Bastien Baranoff — licence GNU GPL v3 ou ultérieure (voir [Licence](#licence-et-attributions)).
+
 Un opérateur GSM complet sur une seule machine, réduit à l'essentiel d'[osmo-operator](https://github.com/bbaranoff/osmo-operator) :
 la pile réseau Osmocom (paquets `.deb` officiels), Asterisk, et un téléphone Calypso
 émulé dont le **DSP TI C54x tourne hors QEMU** (`c54x_exe`, avec la vraie ROM).
@@ -133,3 +135,46 @@ hangup 1
 | `docker-run.sh` | `docker run` avec l'audio de l'hôte |
 | `configs/` | configs Osmocom et mobile figées ; `configs/asterisk/` |
 | `pont/` | pont TRX ↔ DSP et pont audio VSP (repris d'osmo-operator) |
+
+## Licence et attributions
+
+**osmo-minioperator** — un opérateur GSM mono-machine : pile Osmocom, Asterisk et
+téléphone Calypso émulé dont le DSP C54x tourne hors QEMU avec le vocodeur de sa ROM.
+
+Copyright (C) 2026 Bastien Baranoff
+
+Ce programme est un logiciel libre : vous pouvez le redistribuer et/ou le modifier
+selon les termes de la GNU General Public License telle que publiée par la Free
+Software Foundation, soit la version 3 de la licence, soit (à votre choix) toute
+version ultérieure.
+
+Ce programme est distribué dans l'espoir qu'il sera utile, mais SANS AUCUNE GARANTIE ;
+sans même la garantie implicite de QUALITÉ MARCHANDE ou d'ADÉQUATION À UN USAGE
+PARTICULIER. Voir la GNU General Public License pour plus de détails.
+
+Vous devriez avoir reçu une copie de la GNU General Public License avec ce programme
+(fichier [`LICENSE`](LICENSE)). Sinon, voir <https://www.gnu.org/licenses/>.
+
+La GPLv3 couvre le contenu de ce dépôt : `Dockerfile`, scripts (`install.sh`,
+`run-dsp.sh`, `start.sh`, `docker-run.sh`), `configs/` et `pont/`.
+
+### Attributions
+
+Les composants ci-dessous ne sont pas dans ce dépôt : ils sont installés (paquets) ou
+récupérés et compilés au build. Chacun reste sous sa propre licence et à ses auteurs.
+
+| Composant | Origine | Licence |
+|---|---|---|
+| `pont/`, gabarits de `configs/` | [osmo-operator](https://github.com/bbaranoff/osmo-operator), Bastien Baranoff | GPLv3 |
+| qosmo (QEMU Calypso) | [bbaranoff/qosmO](https://github.com/bbaranoff/qosmO), Bastien Baranoff ; fork de [QEMU](https://www.qemu.org) | GPLv3 (ajouts) ; QEMU : GPLv2, voir `COPYING` |
+| c54x_exe (DSP hors QEMU) | [bbaranoff/c54x_exe](https://github.com/bbaranoff/c54x_exe), Bastien Baranoff | GPLv3 |
+| Firmware Calypso `layer1.highram.*` | [bbaranoff/firmware](https://github.com/bbaranoff/firmware), construit depuis osmocom-bb | GPLv2+ |
+| osmocom-bb (`mobile`, `osmocon`) | [Osmocom](https://osmocom.org), phone-side/osmocom-bb | GPLv2+ |
+| libosmocore, libosmo-gprs, osmo-pcu, osmo-ggsn | [Osmocom](https://osmocom.org) (paquets `.deb` officiels) | GPLv2+ |
+| osmo-msc, osmo-bsc, osmo-bts, osmo-hlr, osmo-mgw, osmo-trx, osmo-sgsn, osmo-sip-connector | [Osmocom](https://osmocom.org) (paquets `.deb` officiels) | AGPLv3+ |
+| osmo-stp (libosmo-sigtran) | [Osmocom](https://osmocom.org) (paquets `.deb` officiels) | voir le projet |
+| Asterisk | [Sangoma / Asterisk](https://www.asterisk.org) (paquets Ubuntu) | GPLv2 |
+| Mask-ROM du DSP Calypso (3606) | Texas Instruments ; dump publié par le projet [FreeCalypso](https://www.freecalypso.org) | code TI, **hors GPL** : non inclus dans ce dépôt, téléchargé au build par `rom/fetch-rom.sh` de c54x_exe |
+
+Merci aux projets Osmocom, osmocom-bb, QEMU, FreeCalypso et Asterisk, sans lesquels
+rien de tout ça ne tournerait.

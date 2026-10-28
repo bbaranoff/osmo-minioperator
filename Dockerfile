@@ -1,5 +1,7 @@
 # syntax=docker/dockerfile:1
 # osmo-minioperator : pile Osmocom (debs) + qosmo + c54x_exe + osmocom-bb, run DSP.
+# Copyright (C) 2026 Bastien Baranoff
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 FROM ubuntu:24.04 AS base
 ARG DEBIAN_FRONTEND=noninteractive

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 Bastien Baranoff
+# SPDX-License-Identifier: GPL-3.0-or-later
 # start.sh - entrypoint conteneur : prepare l'environnement puis exec la commande
 # (bash par defaut). NE lance PAS le run DSP tout seul : lancer ./run-dsp.sh a la
 # main dans le conteneur.

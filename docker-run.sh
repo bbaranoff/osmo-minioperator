@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 Bastien Baranoff
+# SPDX-License-Identifier: GPL-3.0-or-later
 # docker-run.sh - lance le conteneur avec l'audio de l'hote : le socket PulseAudio
 # est monte en /run/pulse/native (sans lui l'appel est muet). Arguments passes
 # tels quels au conteneur (defaut : bash).

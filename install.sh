@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 Bastien Baranoff
+# SPDX-License-Identifier: GPL-3.0-or-later
 # install.sh - osmo-minioperator en natif (Ubuntu 24.04)
 # ─────────────────────────────────────────────────────────────────────────────
 # Equivalent natif du Dockerfile : meme pile Osmocom (depuis les .deb amont),

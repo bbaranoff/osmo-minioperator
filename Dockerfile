@@ -119,9 +119,14 @@ ARG ROOT=/opt/GSM
 
 # ── Pile Osmocom reseau depuis les .deb amont ────────────────────────────────
 # osmo-stp inclus : MSC et BSC parlent SS7 (M3UA) au travers de lui.
+# libosmo-gprs-*-dev : osmocom-bb (mobile/modem GPRS) les demande via pkg-config
+# (sinon "Package 'libosmo-gprs-rlcmac', required by 'virtual:world', not found"
+# au build de make nofirmware).
 RUN apt-get update && apt-get install -y --no-install-recommends \
       osmo-stp osmo-hlr osmo-mgw osmo-msc osmo-bsc osmo-bts osmo-pcu osmo-trx \
       osmo-sgsn osmo-ggsn osmo-sip-connector \
+      libosmo-gprs-rlcmac-dev libosmo-gprs-llc-dev libosmo-gprs-gmm-dev \
+      libosmo-gprs-sm-dev libosmo-gprs-csn1-dev \
       telnet \
     && rm -rf /var/lib/apt/lists/*
 

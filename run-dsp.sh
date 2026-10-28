@@ -121,4 +121,13 @@ export PONT_PY="${PONT_PY:-$HERE/pont/pont_dsp.py}"
 export OSMOCON="${OSMOCON:-$GSM_ROOT/osmocom-bb/src/host/osmocon/osmocon}"
 export MOBILE="${MOBILE:-$(command -v mobile || echo /usr/local/bin/mobile)}"
 export QOSMO="${QOSMO:-$GSM_ROOT/qosmo}"
+# Config mobile FIGEE (ARFCN 514, tch-voice deja en io-handler l1phy). Elle est
+# deja dans l'etat cible, donc on NE force PAS BANC_VOCODEUR=rom : la conversion
+# gapk->l1phy de run.sh (config_vocodeur_rom) exigerait un bloc "io-handler
+# gapk" et echouerait sur un fichier deja l1phy. BANC_VOCODEUR reste a "hote"
+# (defaut de run.sh = aucune conversion) ; le vocodeur ROM du DSP est tenu par
+# CALYPSO_VSP=1 (port voix modelise).
+export MOBILE_CFG="${MOBILE_CFG:-$HERE/configs/mobile.cfg}"
+export BANC_VOCODEUR="${BANC_VOCODEUR:-hote}"
+export CALYPSO_VSP="${CALYPSO_VSP:-1}"
 exec "$C54X/run.sh"

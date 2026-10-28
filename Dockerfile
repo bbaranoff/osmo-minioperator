@@ -92,7 +92,7 @@ COPY configs/ /opt/GSM/osmo-minioperator/configs/
 COPY pont/ /opt/GSM/osmo-minioperator/pont/
 COPY run-dsp.sh start.sh /opt/GSM/osmo-minioperator/
 RUN chmod +x /opt/GSM/osmo-minioperator/run-dsp.sh /opt/GSM/osmo-minioperator/start.sh \
-    && install -d /etc/osmocom /var/lib/osmocom \
+    && install -d /etc/osmocom /var/lib/osmocom /var/log/osmocom \
     && cp /opt/GSM/osmo-minioperator/configs/*.cfg /etc/osmocom/
 
 WORKDIR /opt/GSM/osmo-minioperator

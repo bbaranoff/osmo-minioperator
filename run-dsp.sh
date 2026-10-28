@@ -37,6 +37,8 @@ HLR_VTY_IP="${HLR_VTY_IP:-127.0.0.2}"
 HLR_VTY_PORT="${HLR_VTY_PORT:-4258}"
 
 mkdir -p "$LOG_DIR"
+# /var/log/osmocom : les configs ont "log file /var/log/osmocom/*.log".
+install -d /var/log/osmocom /var/lib/osmocom
 PIDS="$LOG_DIR/pids"
 
 say() { printf '\033[1m[run-dsp]\033[0m %s\n' "$*"; }

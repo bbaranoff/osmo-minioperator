@@ -15,7 +15,7 @@ LOG_DIR="${LOG_DIR:-/run/osmo-minioperator/logs}"
 
 # Configs figees -> /etc/osmocom (le Dockerfile l'a deja fait au build ; on le
 # rejoue au cas ou /etc/osmocom serait monte vide par l'hote).
-install -d /etc/osmocom "$LOG_DIR"
+install -d /etc/osmocom /var/log/osmocom /var/lib/osmocom "$LOG_DIR"
 cp -n "$HERE/configs/"*.cfg /etc/osmocom/ 2>/dev/null || true
 
 # Un argument (--stop, --logs, --step...) est passe tel quel a run-dsp.sh.

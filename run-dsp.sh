@@ -38,11 +38,12 @@ KI_HEX="${KI_HEX:-00112233445566778899aabbccdd0101}"
 HLR_VTY_IP="${HLR_VTY_IP:-127.0.0.1}"
 HLR_VTY_PORT="${HLR_VTY_PORT:-4258}"
 
-mkdir -p "$LOG_DIR"
+# Preparation (ce que faisait start.sh) : dossiers, configs Osmocom dans
+# /etc/osmocom si absentes (une config deja posee n'est pas ecrasee).
 # /var/log/osmocom : les configs ont "log file /var/log/osmocom/*.log".
-install -d /var/log/osmocom /var/lib/osmocom
+install -d "$LOG_DIR" /etc/osmocom /var/log/osmocom /var/lib/osmocom /root/.osmocom/bb
+cp -n "$HERE/configs/"*.cfg /etc/osmocom/ 2>/dev/null || true
 # mobile.cfg va dans le chemin par defaut du mobile (/root/.osmocom/bb), pas /etc/osmocom.
-install -d /root/.osmocom/bb
 cp "$HERE/configs/mobile.cfg" /root/.osmocom/bb/mobile.cfg
 PIDS="$LOG_DIR/pids"
 

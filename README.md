@@ -24,7 +24,7 @@ injecté dans le micro du mobile revient par l'écho du 600. Vérifié par `./ve
 | Port voix | SP0 modélisé (`CALYPSO_VSP=1`) ↔ `pont/vsp_audio.py` ↔ PulseAudio (`gsm_audio` / `gsm_mic`) |
 | Données | `tch-data io-handler unix-sock`, format `ti` |
 | Radio | BTS `osmo-bts-trx` ↔ `pont/pont_dsp.py` (TRXC/TRXD 5700-5702) ↔ BSP du DSP (UDP 6702) |
-| Rythme DSP | 120000 instructions/trame, LOCKSTEP=1, `CALYPSO_BSP_STREAM=1`, `CALYPSO_RHEA_DMA_XFER=1` |
+| Rythme DSP | 60000 instructions/trame, LOCKSTEP=1, `CALYPSO_BSP_STREAM=1`, `CALYPSO_RHEA_DMA_XFER=1` |
 
 Les drapeaux de l'émulateur C54x du profil « vocodeur ROM » d'osmo-operator
 (`CALYPSO_MAC`, `CALYPSO_C54X_BCD_*`, `CALYPSO_C54X_OVM_LOGIQUE`, `CALYPSO_NORM_TC=0`…)
@@ -149,7 +149,7 @@ hangup 1
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `INSNS` | 120000 | instructions DSP par trame (plus bas = LU plus rapide, voix non garantie) |
+| `INSNS` | 60000 | instructions DSP par trame ; 120000 ralentit le DSP par rapport à la BTS (RACH perdus, LU en plusieurs tentatives) |
 | `PONT_NOMTXPOWER` | 23 | puissance nominale renvoyée à osmo-bts-trx |
 | `PULSE_SERVER` | `unix:/run/pulse/native` | serveur PulseAudio utilisé par le pont VSP |
 
@@ -174,6 +174,8 @@ hangup 1
 descendante (RMS ≈ 4700 sur `gsm_audio`) et montante (1 kHz renvoyé par l'écho). Le
 commit suivant (`7a4400f`) déplace seulement la préparation de `start.sh` dans
 `run-dsp.sh`. `install.sh` (natif) n'est pas couvert par cette vérification.
+Cette vérification a été faite à `INSNS=120000` ; le défaut est passé à 60000 dans
+`8ef0ddb` (LU plus rapide), pas encore revérifié par `verif.sh`.
 
 Les dépôts compilés au build sont figés par `git checkout` (Dockerfile et `install.sh`) :
 

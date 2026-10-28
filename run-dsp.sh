@@ -187,9 +187,9 @@ export MOBILE_CFG="${MOBILE_CFG:-/root/.osmocom/bb/mobile.cfg}"
 export BANC_VOCODEUR="${BANC_VOCODEUR:-hote}"
 export CALYPSO_VSP="${CALYPSO_VSP:-1}"
 # Reglages DSP du lancement osmo-operator (14-demarrage.sh) : rafale TS0 par
-# trame dans l ordre des FN, livraison DMA, 120000 insn/trame : le codage de la
-# parole montante par la ROM en a besoin (a 60000, voix montante inutilisable).
-export IQ="${IQ:-none}" INSNS="${INSNS:-120000}" LOCKSTEP="${LOCKSTEP:-1}"
+# trame dans l ordre des FN, livraison DMA, 80000 insn/trame : a 60000 la ROM ne
+# code plus la parole montante, a 120000 le DSP est trop lent et le LU echoue.
+export IQ="${IQ:-none}" INSNS="${INSNS:-80000}" LOCKSTEP="${LOCKSTEP:-1}"
 export CALYPSO_RHEA_DMA_XFER="${CALYPSO_RHEA_DMA_XFER:-1}"
 export CALYPSO_BSP_STREAM="${CALYPSO_BSP_STREAM:-1}"
 # Vocodeur et parole montante ROM, comme osmo-operator (14-demarrage.sh) : sans

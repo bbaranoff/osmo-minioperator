@@ -24,7 +24,7 @@ injecté dans le micro du mobile revient par l'écho du 600. Vérifié par `./ve
 | Port voix | SP0 modélisé (`CALYPSO_VSP=1`) ↔ `pont/vsp_audio.py` ↔ PulseAudio (`gsm_audio` / `gsm_mic`) |
 | Données | `tch-data io-handler unix-sock`, format `ti` |
 | Radio | BTS `osmo-bts-trx` ↔ `pont/pont_dsp.py` (TRXC/TRXD 5700-5702) ↔ BSP du DSP (UDP 6702) |
-| Rythme DSP | 120000 instructions/trame, LOCKSTEP=1, `CALYPSO_BSP_STREAM=1`, `CALYPSO_RHEA_DMA_XFER=1` |
+| Rythme DSP | 80000 instructions/trame, LOCKSTEP=1, `CALYPSO_BSP_STREAM=1`, `CALYPSO_RHEA_DMA_XFER=1` |
 
 Les drapeaux de l'émulateur C54x du profil « vocodeur ROM » d'osmo-operator
 (`CALYPSO_MAC`, `CALYPSO_C54X_BCD_*`, `CALYPSO_C54X_OVM_LOGIQUE`, `CALYPSO_NORM_TC=0`…)
@@ -149,7 +149,7 @@ hangup 1
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `INSNS` | 120000 | instructions DSP par trame. Nécessaire à la voix montante : à 60000 le LU est plus rapide mais la ROM ne code plus la parole montante (écho inutilisable) |
+| `INSNS` | 80000 | instructions DSP par trame. À 60000 la ROM ne code plus la parole montante ; à 120000 le DSP est trop lent face à la BTS et le LU échoue |
 | `PONT_NOMTXPOWER` | 23 | puissance nominale renvoyée à osmo-bts-trx |
 | `PULSE_SERVER` | `unix:/run/pulse/native` | serveur PulseAudio utilisé par le pont VSP |
 
@@ -174,8 +174,9 @@ hangup 1
 descendante (RMS ≈ 4700 sur `gsm_audio`) et montante (1 kHz renvoyé par l'écho). Le
 commit suivant (`7a4400f`) déplace seulement la préparation de `start.sh` dans
 `run-dsp.sh`. `install.sh` (natif) n'est pas couvert par cette vérification.
-Cette vérification a été faite à `INSNS=120000`, le défaut. À 60000, `verif.sh` donne la
-voix descendante mais plus la montante (le 1 kHz ne revient pas) : ne pas descendre.
+Cette vérification a été faite à `INSNS=120000`. À 60000, `verif.sh` donne la voix
+descendante mais plus la montante (le 1 kHz ne revient pas). Le défaut est 80000, compromis
+entre le LU et la voix montante, pas encore revérifié par `verif.sh`.
 
 Les dépôts compilés au build sont figés par `git checkout` (Dockerfile et `install.sh`) :
 

@@ -79,7 +79,9 @@ RUN GIT_TERMINAL_PROMPT=0 git clone https://github.com/bbaranoff/firmware /opt/G
 # c54x_exe : CFLAGS sans -march=native (SIGILL sur un autre CPU que l'hote de build).
 # Commit fige (verifie : LU + voix ROM).
 ARG C54X_EXE_REF=0097a4be162733e0edf6cc2eab2db5110a12bfa4
-ARG FREECALYPSO_URL=https://raw.githubusercontent.com/bbaranoff/fc-magnetite/main/freecalypso-env
+# Commit fige de fc-magnetite (pas la branche main) + SHA-256 du dump ROM DSP 3606.
+ARG FREECALYPSO_URL=https://raw.githubusercontent.com/bbaranoff/fc-magnetite/2af596fc74226945bbdaeeadc440ec76bba80766/freecalypso-env
+ARG CALYPSO_DSP_SHA256=e35798f50fd0a29aa61cd53e417c010d7f172582c7bc055211daab8af1e05470
 RUN git clone https://github.com/bbaranoff/c54x_exe /opt/GSM/c54x_exe \
     && cd /opt/GSM/c54x_exe \
     && git checkout -q ${C54X_EXE_REF} \
@@ -87,6 +89,7 @@ RUN git clone https://github.com/bbaranoff/c54x_exe /opt/GSM/c54x_exe \
            CFLAGS="-O3 -g -Wall -Werror=format -Werror=format-extra-args -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-sign-compare" \
     && FREECALYPSO_URL="$FREECALYPSO_URL" bash rom/fetch-rom.sh --dest /opt/GSM --dest /opt/GSM/c54x_exe/rom \
     && curl -fsS --retry 2 -o /opt/GSM/calypso_dsp.txt "$FREECALYPSO_URL/dsp-rom-3606-dump.txt" \
+    && echo "${CALYPSO_DSP_SHA256}  /opt/GSM/calypso_dsp.txt" | sha256sum -c - \
     && cp /opt/GSM/calypso_dsp.txt rom/calypso_dsp.txt
 
 # osmocom-bb : make nofirmware dans src/ (mobile, osmocon, trxcon). Pin eac4eed1

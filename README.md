@@ -6,10 +6,12 @@ Un opérateur GSM complet sur une seule machine, réduit à l'essentiel d'[osmo-
 la pile réseau Osmocom (paquets `.deb` officiels), Asterisk, et un téléphone Calypso
 émulé dont le **DSP TI C54x tourne hors QEMU** (`c54x_exe`, avec la vraie ROM).
 
-**État : la chaîne marche jusqu'à la voix.** Le mobile s'attache (LOCATION UPDATING ACCEPT,
-authentification COMP128 + chiffrement A5/1), passe un appel vers Asterisk, et la voix
-descendante est décodée par le **vocodeur de la ROM du DSP**, puis restituée sur le port
-voix du DSP (annonce « echo test » du 600 entendue sur la sortie haut-parleur du mobile).
+**État : la chaîne marche jusqu'à la voix, dans les deux sens.** Le mobile s'attache
+(LOCATION UPDATING ACCEPT, authentification COMP128 + chiffrement A5/1) et appelle Asterisk.
+La **voix descendante** est décodée par le vocodeur de la ROM du DSP et sort sur son port voix
+(annonce « echo test » du 600) ; la **voix montante** est codée par la même ROM : un son
+injecté dans le micro du mobile revient par l'écho du 600. Vérifié par `./verif.sh`
+(3 appels sur 3, voir [Version vérifiée](#version-vérifiée)).
 
 ## Le mode : DSP, vocodeur ROM (l1phy)
 
@@ -163,6 +165,29 @@ hangup 1
 | `verif.sh` | verdict automatique : LU + appels au 600, voix DL et UL |
 | `configs/` | configs Osmocom et mobile figées ; `configs/asterisk/` |
 | `pont/` | pont TRX ↔ DSP et pont audio VSP (repris d'osmo-operator) |
+
+## Version vérifiée
+
+**Commit fonctionnel : [`d9c32bc`](https://github.com/bbaranoff/osmo-minioperator/commit/d9c32bc)**
+— image construite depuis ce commit, conteneur **sans `--privileged`** (droits de
+`docker-run.sh`), `./verif.sh --appels 3` : LU ACCEPT puis 3 appels sur 3 OK, voix
+descendante (RMS ≈ 4700 sur `gsm_audio`) et montante (1 kHz renvoyé par l'écho). Le
+commit suivant (`7a4400f`) déplace seulement la préparation de `start.sh` dans
+`run-dsp.sh`. `install.sh` (natif) n'est pas couvert par cette vérification.
+
+Les dépôts compilés au build sont figés par `git checkout` (Dockerfile et `install.sh`) :
+
+| Dépôt | Commit |
+|---|---|
+| [qosmO](https://github.com/bbaranoff/qosmO) | `cc9c9c02ed0cab3b4eef7917062923df94e3809e` |
+| [c54x_exe](https://github.com/bbaranoff/c54x_exe) | `0097a4be162733e0edf6cc2eab2db5110a12bfa4` |
+| [firmware](https://github.com/bbaranoff/firmware) | `cb97f3f6a071726b52b6c7fd88f096b0d5bbfb48` |
+| [osmocom-bb](https://gitea.osmocom.org/phone-side/osmocom-bb) | `eac4eed1eff1003517fbc3e48c360a525707c4ab` |
+
+Les paquets viennent du dépôt `osmocom:latest`, qui évolue ; versions de la vérification :
+osmo-stp 2.3.0, osmo-hlr 1.9.4, osmo-mgw 1.16.1, osmo-msc 1.16.0, osmo-bsc 1.15.0,
+osmo-bts-trx 1.12.0, osmo-pcu 1.5.3, osmo-sip-connector 1.7.2, libosmocore 1.14.2,
+Asterisk 20.6.0 (Ubuntu 24.04).
 
 ## Licence et attributions
 

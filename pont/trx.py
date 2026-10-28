@@ -208,7 +208,10 @@ class Trx:
             parts = req.split()
             cmd = parts[1] if len(parts) > 1 else ""
             args = (" " + " ".join(parts[2:])) if len(parts) > 2 else ""
-            self.sk_ctrl.sendto(("RSP %s 0%s" % (cmd, args)).encode() + b"\0", addr)
+            # osmo-bts-trx attend la puissance nominale (dBm) dans la reponse :
+            # "RSP NOMTXPOWER 0" seul -> "Failed to parse NOMTXPOWER response" -> exit.
+            rsp_args = (" " + os.environ.get("PONT_NOMTXPOWER", "23")) if cmd == "NOMTXPOWER" else args
+            self.sk_ctrl.sendto(("RSP %s 0%s" % (cmd, rsp_args)).encode() + b"\0", addr)
             if self.bts_clck is None:
                 self.bts_clck = (addr[0], self.cfg.trx_base + 100)
                 log.info("BTS %s : horloge armee vers le port %d", addr[0], self.bts_clck[1])

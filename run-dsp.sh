@@ -92,15 +92,17 @@ app() {
 
 say "configs : $CFG_DIR    logs : $LOG_DIR"
 
-# Coeur, chacun comme une application (ordre des dependances)
+# Repartir propre : run.sh saute les etapes dont le process est deja vivant.
+stop_all >/dev/null 2>&1
+: > "$PIDS"
+
+# Coeur, chacun comme une application (ordre des dependances). osmo-bts-trx et
+# osmo-pcu partent APRES la chaine DSP : le pont tient TRXC/TRXD (5700-5702).
 app osmo-stp        osmo-stp.cfg
 app osmo-hlr        osmo-hlr.cfg       --database /var/lib/osmocom/hlr.db
 app osmo-mgw        osmo-mgw.cfg
 app osmo-msc        osmo-msc.cfg
 app osmo-bsc        osmo-bsc.cfg
-app osmo-bts-trx    osmo-bts-trx.cfg
-# Reste de la pile (best effort : peut attendre ses pairs sans bloquer)
-app osmo-pcu            osmo-pcu.cfg
 app osmo-sgsn           osmo-sgsn.cfg
 app osmo-ggsn           osmo-ggsn.cfg
 app osmo-sip-connector  osmo-sip-connector.cfg
@@ -150,4 +152,13 @@ export IQ="${IQ:-none}" INSNS="${INSNS:-60000}" LOCKSTEP="${LOCKSTEP:-1}"
 export CALYPSO_RHEA_DMA_XFER="${CALYPSO_RHEA_DMA_XFER:-1}"
 export CALYPSO_BSP_DIRECT_FEED="${CALYPSO_BSP_DIRECT_FEED:-1}"
 export CALYPSO_BSP_STREAM="${CALYPSO_BSP_STREAM:-1}"
-exec "$C54X/run.sh"
+"$C54X/run.sh" || { say "ECHEC de la chaine DSP"; exit 1; }
+
+# ── BTS + PCU, une fois le pont a l'ecoute sur TRXC 5701 ─────────────────────
+for _ in $(seq 1 30); do
+    ss -uanH 2>/dev/null | grep -q '127.0.0.1:5701 ' && break
+    sleep 0.5
+done
+app osmo-bts-trx    osmo-bts-trx.cfg
+app osmo-pcu        osmo-pcu.cfg
+say "pret. LU : grep -c 'LOCATION UPDATING ACCEPT' /tmp/c54x-pont/mobile.log"

@@ -39,6 +39,9 @@ HLR_VTY_PORT="${HLR_VTY_PORT:-4258}"
 mkdir -p "$LOG_DIR"
 # /var/log/osmocom : les configs ont "log file /var/log/osmocom/*.log".
 install -d /var/log/osmocom /var/lib/osmocom
+# mobile.cfg va dans le chemin par defaut du mobile (/root/.osmocom/bb), pas /etc/osmocom.
+install -d /root/.osmocom/bb
+cp "$HERE/configs/mobile.cfg" /root/.osmocom/bb/mobile.cfg
 PIDS="$LOG_DIR/pids"
 
 say() { printf '\033[1m[run-dsp]\033[0m %s\n' "$*"; }
@@ -129,7 +132,7 @@ export QOSMO="${QOSMO:-$GSM_ROOT/qosmo}"
 # gapk" et echouerait sur un fichier deja l1phy. BANC_VOCODEUR reste a "hote"
 # (defaut de run.sh = aucune conversion) ; le vocodeur ROM du DSP est tenu par
 # CALYPSO_VSP=1 (port voix modelise).
-export MOBILE_CFG="${MOBILE_CFG:-$HERE/configs/mobile.cfg}"
+export MOBILE_CFG="${MOBILE_CFG:-/root/.osmocom/bb/mobile.cfg}"
 export BANC_VOCODEUR="${BANC_VOCODEUR:-hote}"
 export CALYPSO_VSP="${CALYPSO_VSP:-1}"
 exec "$C54X/run.sh"

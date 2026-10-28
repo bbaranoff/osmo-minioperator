@@ -94,6 +94,36 @@ app() {
     sleep 1
 }
 
+# ── Audio : PulseAudio pour le pont voix VSP (gsm_audio / gsm_mic) ──────────
+# PulseAudio de l'hote joignable (socket monte par docker-run.sh) : on l'utilise
+# et on y cree gsm_audio / gsm_mic s'ils manquent, relies a la sortie et a
+# l'entree par defaut. Sinon : serveur local sans sortie physique, la voix
+# circule (verif.sh la mesure) mais on ne l'entend pas.
+PULSE_LOCAL=/tmp/pulse/native
+audio_pulse() {
+    if ! pactl info >/dev/null 2>&1; then
+        install -d "$(dirname "$PULSE_LOCAL")"
+        [ -S "$PULSE_LOCAL" ] || pulseaudio -n --daemonize=yes --exit-idle-time=-1 --use-pid-file=no \
+            --load="module-native-protocol-unix auth-anonymous=1 socket=$PULSE_LOCAL" >/dev/null 2>&1
+        export PULSE_SERVER="unix:$PULSE_LOCAL"
+        for _ in $(seq 1 20); do pactl info >/dev/null 2>&1 && break; sleep 0.25; done
+        say "  pas de PulseAudio de l'hote : serveur local sans son (./docker-run.sh pour entendre)"
+    fi
+    local reel=1; [ "${PULSE_SERVER:-}" = "unix:$PULSE_LOCAL" ] && reel=0
+    local s
+    for s in gsm_audio gsm_mic; do
+        pactl list short sinks | awk '{print $2}' | grep -qx "$s" && continue
+        pactl load-module module-null-sink sink_name="$s" format=s16le rate=8000 channels=1 >/dev/null
+        if [ "$reel" = 1 ] && [ "$s" = gsm_audio ]; then
+            pactl load-module module-loopback source=gsm_audio.monitor sink=@DEFAULT_SINK@ latency_msec=40 >/dev/null
+        elif [ "$reel" = 1 ]; then
+            pactl load-module module-loopback source=@DEFAULT_SOURCE@ sink=gsm_mic latency_msec=40 >/dev/null
+        fi
+    done
+    echo "${PULSE_SERVER:-defaut}" > "$LOG_DIR/pulse_server"
+    say "  audio : ${PULSE_SERVER:-defaut} ($([ "$reel" = 1 ] && echo "PulseAudio de l'hote" || echo "local, sans son"))"
+}
+
 say "configs : $CFG_DIR    logs : $LOG_DIR"
 
 # Repartir propre : run.sh saute les etapes dont le process est deja vivant.
@@ -169,7 +199,7 @@ for _kv in CALYPSO_NORM_TC=0 CALYPSO_C54X_BCTC_NORM=1 PONT_UL_RAW_TCH=1 \
     _k="${_kv%%=*}"; [ -n "${!_k+x}" ] || export "$_kv"
 done
 unset _kv _k
-pactl info >/dev/null 2>&1 || say "  pas de PulseAudio (${PULSE_SERVER:-defaut}) : appel muet - lancer le conteneur avec ./docker-run.sh"
+audio_pulse
 "$C54X/run.sh" || { say "ECHEC de la chaine DSP"; exit 1; }
 
 # ── BTS + PCU, une fois le pont a l'ecoute sur TRXC 5701 ─────────────────────

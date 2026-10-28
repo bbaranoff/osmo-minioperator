@@ -40,8 +40,11 @@ WORKDIR ${ROOT}
 
 FROM base AS qemu
 ARG ROOT=/opt/GSM
+# Commit fige (verifie : LU + voix ROM).
+ARG QOSMO_REF=cc9c9c02ed0cab3b4eef7917062923df94e3809e
 RUN git clone https://github.com/bbaranoff/qosmO /opt/GSM/qosmo \
     && cd /opt/GSM/qosmo \
+    && git checkout -q ${QOSMO_REF} \
     && python3 -m venv /root/.venv-qemu \
     && . /root/.venv-qemu/bin/activate \
     && pip install --no-cache-dir tomli \
@@ -62,19 +65,24 @@ ARG ROOT=/opt/GSM
 RUN apt-get update && apt-get install -y --no-install-recommends \
       osmo-stp osmo-hlr osmo-mgw osmo-msc osmo-bsc osmo-bts osmo-pcu osmo-trx \
       osmo-sgsn osmo-ggsn osmo-sip-connector telnet \
-      asterisk asterisk-core-sounds-en pulseaudio-utils \
+      asterisk asterisk-core-sounds-en pulseaudio pulseaudio-utils \
       libosmo-csn1-dev libosmo-gprs-rlcmac-dev libosmo-gprs-llc-dev \
       libosmo-gprs-gmm-dev libosmo-gprs-sm-dev libosmo-gprs-sndcp-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Firmware Calypso prebuild (PHY_MODE=qemu : QEMU -kernel .elf, osmocon romload .bin).
-RUN GIT_TERMINAL_PROMPT=0 git clone --depth 1 \
-      https://github.com/bbaranoff/firmware /opt/GSM/firmware
+# Commit fige (verifie : LU + voix ROM).
+ARG FIRMWARE_REF=cb97f3f6a071726b52b6c7fd88f096b0d5bbfb48
+RUN GIT_TERMINAL_PROMPT=0 git clone https://github.com/bbaranoff/firmware /opt/GSM/firmware \
+    && git -C /opt/GSM/firmware checkout -q ${FIRMWARE_REF}
 
 # c54x_exe : CFLAGS sans -march=native (SIGILL sur un autre CPU que l'hote de build).
+# Commit fige (verifie : LU + voix ROM).
+ARG C54X_EXE_REF=0097a4be162733e0edf6cc2eab2db5110a12bfa4
 ARG FREECALYPSO_URL=https://raw.githubusercontent.com/bbaranoff/fc-magnetite/main/freecalypso-env
 RUN git clone https://github.com/bbaranoff/c54x_exe /opt/GSM/c54x_exe \
     && cd /opt/GSM/c54x_exe \
+    && git checkout -q ${C54X_EXE_REF} \
     && make QOSMO=/opt/GSM/qosmo \
            CFLAGS="-O3 -g -Wall -Werror=format -Werror=format-extra-args -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-sign-compare" \
     && FREECALYPSO_URL="$FREECALYPSO_URL" bash rom/fetch-rom.sh --dest /opt/GSM --dest /opt/GSM/c54x_exe/rom \
@@ -90,17 +98,15 @@ RUN git clone https://gitea.osmocom.org/phone-side/osmocom-bb /opt/GSM/osmocom-b
     && make nofirmware \
     && ln -sf /opt/GSM/osmocom-bb/src/host/layer23/src/mobile/mobile /usr/local/bin/mobile
 
-# Configs figees (mono-operateur) + pont DSP + scripts. Lien /opt/GSM/osmo-operator :
-# c54x_exe/run.sh lance le pont audio VSP par "cd /opt/GSM/osmo-operator && python3 -m pont.vsp_audio".
+# Configs figees (mono-operateur) + pont DSP + scripts.
 COPY configs/ /opt/GSM/osmo-minioperator/configs/
 COPY configs/asterisk/ /etc/asterisk/
 COPY pont/ /opt/GSM/osmo-minioperator/pont/
-COPY run-dsp.sh start.sh /opt/GSM/osmo-minioperator/
-RUN chmod +x /opt/GSM/osmo-minioperator/run-dsp.sh /opt/GSM/osmo-minioperator/start.sh \
+COPY run-dsp.sh start.sh verif.sh /opt/GSM/osmo-minioperator/
+RUN chmod +x /opt/GSM/osmo-minioperator/run-dsp.sh /opt/GSM/osmo-minioperator/start.sh /opt/GSM/osmo-minioperator/verif.sh \
     && install -d /etc/osmocom /var/lib/osmocom /var/log/osmocom /root/.osmocom/bb \
     && cp /opt/GSM/osmo-minioperator/configs/*.cfg /etc/osmocom/ \
-    && cp /opt/GSM/osmo-minioperator/configs/mobile.cfg /root/.osmocom/bb/mobile.cfg \
-    && ln -s /opt/GSM/osmo-minioperator /opt/GSM/osmo-operator
+    && cp /opt/GSM/osmo-minioperator/configs/mobile.cfg /root/.osmocom/bb/mobile.cfg
 
 # Audio : le socket PulseAudio de l'hote est monte ici par docker-run.sh.
 ENV PULSE_SERVER=unix:/run/pulse/native

@@ -28,6 +28,10 @@ Les drapeaux de l'émulateur C54x du profil « vocodeur ROM » d'osmo-operator
 (`CALYPSO_MAC`, `CALYPSO_C54X_BCD_*`, `CALYPSO_C54X_OVM_LOGIQUE`, `CALYPSO_NORM_TC=0`…)
 sont posés par `run-dsp.sh` : sans eux le port voix n'est jamais armé et l'appel est muet.
 
+La mask-ROM du DSP (version 3606) est le code de Texas Instruments publié en dump par le
+projet FreeCalypso. Elle **n'est pas dans ce dépôt** : `c54x_exe/rom/fetch-rom.sh` la
+télécharge au build et vérifie ses sommes SHA-256.
+
 ## L'opérateur (valeurs figées)
 
 Un seul opérateur, plus de gabarits ni de moteur de substitution : tout est écrit en dur
@@ -57,14 +61,20 @@ Les trunks SIP externes (Zadarma) d'osmo-operator ont été retirés.
 ```bash
 sudo docker build -t osmo-minioperator .
 sudo ./docker-run.sh
+./verif.sh              # dans le conteneur : verdict en une commande
 ```
 
-`docker-run.sh` monte le socket PulseAudio de l'hôte : **sans lui l'appel est muet**.
+`docker-run.sh` monte le socket PulseAudio de l'hôte : **sans lui on n'entend rien**
+(la voix circule quand même dans un PulseAudio local, et `verif.sh` la mesure).
 L'équivalent à la main :
 
 ```bash
-sudo docker run -it --privileged -v /run/pulse/native:/run/pulse/native osmo-minioperator
+sudo docker run -it --cap-add NET_ADMIN --cap-add SYS_NICE --device /dev/net/tun \
+     -v /run/pulse/native:/run/pulse/native osmo-minioperator
 ```
+
+Pas besoin de `--privileged` : `NET_ADMIN` et `/dev/net/tun` servent à osmo-ggsn (TUN),
+`SYS_NICE` à la priorité temps réel du DSP.
 
 L'entrée dans le conteneur donne un shell ; rien ne démarre tout seul.
 
@@ -90,6 +100,23 @@ Chaque composant est lancé **comme une application** (pas de service systemd) :
 osmo-stp, osmo-hlr (+ provisioning de l'abonné), osmo-mgw, osmo-msc, osmo-bsc, osmo-sgsn,
 osmo-ggsn, asterisk, osmo-sip-connector, puis la chaîne DSP (`c54x_exe/run.sh MODE=dsp PONT=1`),
 et enfin osmo-bts-trx et osmo-pcu une fois le pont à l'écoute.
+
+osmo-sgsn, osmo-ggsn et osmo-pcu sont lancés pour que la cellule soit la même que celle
+d'osmo-operator (indicateur GPRS dans les System Information). **Le GPRS n'est pas
+démontré** dans ce dépôt : seuls l'attachement GSM et les appels vocaux le sont.
+
+### Verdict automatique
+
+```bash
+./verif.sh                  # relance tout, LU, puis 2 appels au 600
+./verif.sh --appels 3       # 3 appels
+./verif.sh --no-restart     # sur la pile déjà lancée
+```
+
+Pour chaque appel : canal établi côté Asterisk, **voix descendante** (l'annonce d'Asterisk
+sort du vocodeur ROM sur `gsm_audio`), **voix montante** (un 1 kHz injecté dans `gsm_mic`,
+le micro du mobile, revient par l'écho du 600). Code de sortie 0 si tout est bon ;
+enregistrements dans `/tmp/verif/`.
 
 Vérifier l'attachement (≈ 1 min) :
 
@@ -132,7 +159,8 @@ hangup 1
 | `install.sh` | même chose en natif |
 | `run-dsp.sh` | lancement de l'opérateur en mode DSP |
 | `start.sh` | entrypoint du conteneur |
-| `docker-run.sh` | `docker run` avec l'audio de l'hôte |
+| `docker-run.sh` | `docker run` avec l'audio de l'hôte, sans `--privileged` |
+| `verif.sh` | verdict automatique : LU + appels au 600, voix DL et UL |
 | `configs/` | configs Osmocom et mobile figées ; `configs/asterisk/` |
 | `pont/` | pont TRX ↔ DSP et pont audio VSP (repris d'osmo-operator) |
 

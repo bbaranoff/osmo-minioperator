@@ -20,11 +20,27 @@ ROOT=/opt/GSM
 OSMO_OBS=${OSMO_OBS:-https://downloads.osmocom.org/packages/osmocom:/latest/xUbuntu_24.04}
 OSMO_ASC_URL=${OSMO_ASC_URL:-https://obs.osmocom.org/projects/osmocom/public_key}
 OSMOCOM_BB_REF=${OSMOCOM_BB_REF:-eac4eed1}
+# Commits figes (verifies : LU + voix ROM).
+QOSMO_REF=${QOSMO_REF:-cc9c9c02ed0cab3b4eef7917062923df94e3809e}
+C54X_EXE_REF=${C54X_EXE_REF:-0097a4be162733e0edf6cc2eab2db5110a12bfa4}
+FIRMWARE_REF=${FIRMWARE_REF:-cb97f3f6a071726b52b6c7fd88f096b0d5bbfb48}
 FREECALYPSO_URL=${FREECALYPSO_URL:-https://raw.githubusercontent.com/bbaranoff/fc-magnetite/main/freecalypso-env}
 export DEBIAN_FRONTEND=noninteractive
 export GIT_TERMINAL_PROMPT=0
 export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
 export LD_LIBRARY_PATH=/usr/local/lib
+
+# clone_fige <url> <dir> <ref> : clone + checkout du commit fige. Un arbre deja
+# present n'est pas touche (arbre de dev) : on signale seulement un ecart.
+clone_fige() {
+    local url="$1" dir="$2" ref="$3"
+    if [ -d "$dir/.git" ]; then
+        [ "$(git -C "$dir" rev-parse HEAD)" = "$(git -C "$dir" rev-parse "$ref^{commit}" 2>/dev/null)" ] \
+            || echo "ATTENTION : $dir existe et n'est pas au commit fige $ref (laisse tel quel)"
+        return 0
+    fi
+    git clone "$url" "$dir" && git -C "$dir" checkout -q "$ref"
+}
 
 log() { echo -e "\n\033[1;36m== $* ==\033[0m"; }
 
@@ -70,7 +86,7 @@ mkdir -p "$ROOT"
 # ── 3. qosmo : QEMU arm-softmmu --enable-l1-grgsm ────────────────────────────
 log "qosmo (QEMU Calypso)"
 if [ ! -x /usr/local/bin/qosmo ]; then
-    [ -d "$ROOT/qosmo" ] || git clone https://github.com/bbaranoff/qosmO "$ROOT/qosmo"
+    clone_fige https://github.com/bbaranoff/qosmO "$ROOT/qosmo" "$QOSMO_REF"
     cd "$ROOT/qosmo"
     [ -d /root/.venv-qemu ] || python3 -m venv /root/.venv-qemu
     # shellcheck disable=SC1091
@@ -90,16 +106,12 @@ fi
 
 # ── 4. Firmware Calypso (prebuild) ───────────────────────────────────────────
 log "Firmware Calypso"
-if [ ! -d "$ROOT/firmware" ]; then
-    git clone --depth 1 https://github.com/bbaranoff/firmware "$ROOT/firmware"
-else
-    echo "firmware deja present, saute."
-fi
+clone_fige https://github.com/bbaranoff/firmware "$ROOT/firmware" "$FIRMWARE_REF"
 
 # ── 5. c54x_exe : le C54x hors QEMU ──────────────────────────────────────────
 # -march=native retire des CFLAGS (SIGILL possible si le CPU d'exec differe).
 log "c54x_exe (C54x hors QEMU)"
-[ -d "$ROOT/c54x_exe" ] || git clone https://github.com/bbaranoff/c54x_exe "$ROOT/c54x_exe"
+clone_fige https://github.com/bbaranoff/c54x_exe "$ROOT/c54x_exe" "$C54X_EXE_REF"
 cd "$ROOT/c54x_exe"
 make QOSMO="$ROOT/qosmo" \
     CFLAGS="-O3 -g -Wall -Werror=format -Werror=format-extra-args -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-sign-compare"
@@ -128,8 +140,6 @@ install -d /etc/osmocom /var/lib/osmocom
 cp "$HERE/configs/"*.cfg /etc/osmocom/
 install -d /root/.osmocom/bb && cp "$HERE/configs/mobile.cfg" /root/.osmocom/bb/mobile.cfg
 cp "$HERE/configs/asterisk/"*.conf /etc/asterisk/
-# c54x_exe/run.sh lance le pont audio VSP depuis /opt/GSM/osmo-operator.
-[ -e "$ROOT/osmo-operator" ] || ln -s "$HERE" "$ROOT/osmo-operator"
 chmod +x "$HERE/run-dsp.sh" "$HERE/start.sh" "$HERE/docker-run.sh" 2>/dev/null || true
 
 ldconfig

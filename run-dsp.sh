@@ -46,28 +46,56 @@ cp -n "$HERE/configs/"*.cfg /etc/osmocom/ 2>/dev/null || true
 # mobile.cfg va dans le chemin par defaut du mobile (/root/.osmocom/bb), pas /etc/osmocom.
 cp "$HERE/configs/mobile.cfg" /root/.osmocom/bb/mobile.cfg
 PIDS="$LOG_DIR/pids"
+PULSE_LOCAL=/tmp/pulse/native
 
 say() { printf '\033[1m[run-dsp]\033[0m %s\n' "$*"; }
 
-# ── Arret ────────────────────────────────────────────────────────────────────
+# ── Arret : retour a l'etat d'un conteneur neuf ──────────────────────────────
+# Un relancement doit repartir comme apres un "docker rm" : process tues (TERM
+# puis KILL), etat partage /dev/shm, sockets /tmp et bases effaces. Un reste
+# relu au demarrage suivant (canal dedie, Kc, anneaux ROM...) empeche le mobile
+# de se caler. Les journaux sont gardes pour l'analyse.
+MOTIFS_PILE=( "^/usr/bin/osmo-" "^/usr/sbin/asterisk" "c54x_exe --arm" "qemu-system-arm -M calypso"
+              "osmocon -m romload" "^/usr/local/bin/mobile" "pont/pont_dsp[.]py" "pont[.]vsp_audio"
+              "gdb-telnet[.]py" "--device=gsm_" "socket=$PULSE_LOCAL" )
 stop_all() {
-    say "arret de la chaine DSP"
+    say "arret de tout (etat d'un conteneur neuf)"
     [ -x "$C54X/run.sh" ] && MODE=dsp "$C54X/run.sh" --stop >/dev/null 2>&1 || true
-    say "arret des composants Osmocom"
     if [ -f "$PIDS" ]; then
-        # arret dans l'ordre inverse
-        tac "$PIDS" | while read -r pid name; do
-            kill "$pid" 2>/dev/null && say "  stop $name ($pid)"
-        done
+        tac "$PIDS" | while read -r pid name; do kill "$pid" 2>/dev/null; done
         rm -f "$PIDS"
     fi
-    # filet : les binaires lances comme applications. pkill -f sur le chemin :
-    # le nom de process est tronque a 15 caracteres (osmo-sip-connec).
-    for b in osmo-sip-connector osmo-ggsn osmo-sgsn osmo-pcu osmo-bts-trx \
-             osmo-bsc osmo-msc osmo-mgw osmo-hlr osmo-stp; do
-        pkill -f "^/usr/bin/$b( |$)" 2>/dev/null || true
+    asterisk -rx "core stop now" >/dev/null 2>&1 || true
+    local m
+    for m in "${MOTIFS_PILE[@]}"; do pkill -f -- "$m" 2>/dev/null; done
+    # Laisser le temps au TERM (jusqu'a 5 s), puis KILL ce qui reste.
+    for _ in $(seq 1 10); do
+        pgrep -f -- "$(IFS='|'; echo "${MOTIFS_PILE[*]}")" >/dev/null 2>&1 || break
+        sleep 0.5
     done
-    asterisk -rx "core stop now" >/dev/null 2>&1 || pkill -x asterisk 2>/dev/null || true
+    for m in "${MOTIFS_PILE[@]}"; do pkill -9 -f -- "$m" 2>/dev/null; done
+    # /dev/shm (pont.log et les segments PulseAudio pulse-shm-* ne sont pas touches)
+    rm -f /dev/shm/calypso_* /dev/shm/pont_tch_dl* /dev/shm/daram_* \
+          /dev/shm/apm_trace /dev/shm/tsp_trace /dev/shm/qemu-asm.fifo
+    # sockets : L1CTL, SAP, donnees, DSP, moniteur QEMU, MNCC, PCU, PulseAudio local.
+    # FIFO du panneau IQ (pont/record.py) et journaux de console QEMU : recrees au besoin.
+    rm -f /tmp/osmocom_l2* /tmp/osmocom_sap* /tmp/ms_data* /tmp/calypso_*.sock \
+          /tmp/qemu-monitor-*.sock /tmp/msc_mncc /tmp/pcu_bts "$PULSE_LOCAL" \
+          /tmp/calypso_flow.txt /tmp/qemu-fw-console.log /tmp/iq_fft.fifo /tmp/iq_fft_ms.fifo
+    # Modules PulseAudio poses par audio_pulse dans le serveur de l'hote : le
+    # null-sink gsm_audio / gsm_mic et ses loopback restent charges apres l'arret
+    # des process et s'empilent a chaque relance. On decharge ceux dont l'argument
+    # nomme gsm_audio ou gsm_mic (sinks ET loopback), sans toucher au reste.
+    if pactl info >/dev/null 2>&1; then
+        pactl list short modules 2>/dev/null \
+            | awk '/gsm_audio|gsm_mic/ {print $1}' \
+            | while read -r id; do pactl unload-module "$id" >/dev/null 2>&1; done
+    fi
+    # Bases HLR et SMS : dans le conteneur seulement. En natif /var/lib/osmocom
+    # peut appartenir a une autre pile (osmo-operator) : on n'y touche pas.
+    [ "${OSMO_IMAGE:-0}" = 1 ] && rm -f /var/lib/osmocom/hlr.db* /var/lib/osmocom/sms.db*
+    local reste; reste="$(for m in "${MOTIFS_PILE[@]}"; do pgrep -f -- "$m"; done | sort -u | tr '\n' ' ')"
+    [ -n "${reste// /}" ] && say "  ATTENTION : process encore vivants : $reste" || true
 }
 
 case "${1:-}" in
@@ -88,7 +116,8 @@ app() {
     fi
     local args=()
     [ -n "$cfg" ] && args+=(-c "$CFG_DIR/$cfg")
-    "$path" "${args[@]}" "$@" >"$LOG_DIR/$bin.log" 2>&1 &
+    # cwd /var/lib/osmocom : osmo-msc y cree sms.db (chemin relatif).
+    ( cd /var/lib/osmocom && exec "$path" "${args[@]}" "$@" ) >"$LOG_DIR/$bin.log" 2>&1 &
     local pid=$!
     echo "$pid $bin" >> "$PIDS"
     say "  start $bin ($pid)  cfg=${cfg:-aucune}"
@@ -100,11 +129,10 @@ app() {
 # et on y cree gsm_audio / gsm_mic s'ils manquent, relies a la sortie et a
 # l'entree par defaut. Sinon : serveur local sans sortie physique, la voix
 # circule (verif.sh la mesure) mais on ne l'entend pas.
-PULSE_LOCAL=/tmp/pulse/native
 audio_pulse() {
     if ! pactl info >/dev/null 2>&1; then
         install -d "$(dirname "$PULSE_LOCAL")"
-        [ -S "$PULSE_LOCAL" ] || pulseaudio -n --daemonize=yes --exit-idle-time=-1 --use-pid-file=no \
+        PULSE_SERVER="unix:$PULSE_LOCAL" pactl info >/dev/null 2>&1 || pulseaudio -n --daemonize=yes --exit-idle-time=-1 --use-pid-file=no \
             --load="module-native-protocol-unix auth-anonymous=1 socket=$PULSE_LOCAL" >/dev/null 2>&1
         export PULSE_SERVER="unix:$PULSE_LOCAL"
         for _ in $(seq 1 20); do pactl info >/dev/null 2>&1 && break; sleep 0.25; done

@@ -8,7 +8,8 @@ set -eu
 IMG="${IMG:-osmo-minioperator}"
 # Pas de --privileged : NET_ADMIN + /dev/net/tun pour osmo-ggsn (TUN),
 # SYS_NICE pour la priorite temps reel du DSP (run.sh, RT_NICE).
-args=(--rm -it --cap-add NET_ADMIN --cap-add SYS_NICE --device /dev/net/tun)
+# --init : un vrai PID 1 ramasse les process termines de la pile.
+args=(--rm -it --init --cap-add NET_ADMIN --cap-add SYS_NICE --device /dev/net/tun)
 
 uid="${SUDO_UID:-$(id -u)}"
 for s in /run/pulse/native /var/run/pulse/native "/run/user/$uid/pulse/native"; do

@@ -57,6 +57,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       wget curl ca-certificates gnupg \
       python3 python3-dev python3-venv python3-pip python3-numpy python3-scipy \
       libglib2.0-dev libpixman-1-dev libslirp-dev socat ninja-build \
+      iproute2 procps psmisc util-linux \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Depot binaire Osmocom (OBS) ──────────────────────────────────────────────
@@ -65,10 +66,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # osmo-sip-connector, osmo-trx...) et libosmocore y sont fournis en .deb amont.
 # La cle publique est armee (.asc) et va en /usr/share/osmocom-keyring/ : le
 # paquet osmocom-keyring la met a jour la quand elle est etendue.
+# OSMO_ASC_URL (et pas *_KEY) : evite le warning BuildKit SecretsUsedInArgOrEnv,
+# qui signale tout ARG/ENV dont le nom contient KEY/TOKEN/SECRET. Ce n'est pas un
+# secret : c'est l'URL d'une cle PUBLIQUE de signature.
 ARG OSMO_OBS=https://downloads.osmocom.org/packages/osmocom:/latest/xUbuntu_24.04
-ARG OSMO_KEY=https://obs.osmocom.org/projects/osmocom/public_key
+ARG OSMO_ASC_URL=https://obs.osmocom.org/projects/osmocom/public_key
 RUN install -d /usr/share/osmocom-keyring \
-    && curl -fsSL "${OSMO_KEY}" -o /usr/share/osmocom-keyring/osmocom.asc \
+    && curl -fsSL "${OSMO_ASC_URL}" -o /usr/share/osmocom-keyring/osmocom.asc \
     && echo "deb [signed-by=/usr/share/osmocom-keyring/osmocom.asc] ${OSMO_OBS}/ ./" \
          > /etc/apt/sources.list.d/osmocom.list
 
@@ -114,9 +118,11 @@ FROM qemu AS c54x
 ARG ROOT=/opt/GSM
 
 # ── Pile Osmocom reseau depuis les .deb amont ────────────────────────────────
+# osmo-stp inclus : MSC et BSC parlent SS7 (M3UA) au travers de lui.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      osmo-hlr osmo-mgw osmo-msc osmo-bsc osmo-bts osmo-pcu osmo-trx \
+      osmo-stp osmo-hlr osmo-mgw osmo-msc osmo-bsc osmo-bts osmo-pcu osmo-trx \
       osmo-sgsn osmo-ggsn osmo-sip-connector \
+      telnet \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Firmware Calypso (layer1.highram.*) ──────────────────────────────────────
@@ -142,4 +148,36 @@ RUN git clone https://github.com/bbaranoff/c54x_exe /opt/GSM/c54x_exe \
     && curl -fsS --retry 2 -o /opt/GSM/calypso_dsp.txt "$FREECALYPSO_URL/dsp-rom-3606-dump.txt" \
     && cp /opt/GSM/calypso_dsp.txt rom/calypso_dsp.txt
 
-WORKDIR /opt/GSM/c54x_exe
+# ── osmocom-bb : layer 2/3 (mobile), osmocon, trxcon ─────────────────────────
+# Compile dans src/ avec `make nofirmware` (host tools, PAS le firmware Calypso :
+# celui-ci vient deja de github.com/bbaranoff/firmware). Le mode DSP utilise
+# mobile + osmocon (layer23 cause L1CTL au firmware via la PTY serie de QEMU).
+# Pin eac4eed1 : au-dela, upstream a retire trxcon de `make nofirmware` et l'a
+# rendu dependant de libosmo-trx, donc un clone de HEAD ne produit plus trxcon.
+ARG OSMOCOM_BB_REF=eac4eed1
+RUN git clone https://gitea.osmocom.org/phone-side/osmocom-bb /opt/GSM/osmocom-bb \
+    && git -C /opt/GSM/osmocom-bb checkout -q ${OSMOCOM_BB_REF} \
+    && cd /opt/GSM/osmocom-bb/src \
+    && make nofirmware \
+    # make nofirmware n'installe rien : on expose `mobile` dans le PATH, la ou
+    # c54x_exe/run.sh le cherche (osmocon, lui, est pris a son chemin par defaut
+    # /opt/GSM/osmocom-bb/src/host/osmocon/osmocon).
+    && ln -sf /opt/GSM/osmocom-bb/src/host/layer23/src/mobile/mobile /usr/local/bin/mobile
+
+# ── Configs figees (mono-operateur) + scripts de lancement ───────────────────
+# Les configs/ ont ete generees une fois (valeurs op=1, node=1, plan local) a
+# partir des gabarits d'osmo-operator : plus aucun marqueur __XXX__, plus de
+# moteur de substitution. Installees dans /etc/osmocom, ou les .deb Osmocom
+# cherchent leur configuration.
+# pont/ : le bridge DSP (pont_dsp.py et son paquet), repris d'osmo-operator.
+# run-dsp.sh pointe PONT_PY dessus.
+COPY configs/ /opt/GSM/osmo-minioperator/configs/
+COPY pont/ /opt/GSM/osmo-minioperator/pont/
+COPY run-dsp.sh start.sh /opt/GSM/osmo-minioperator/
+RUN chmod +x /opt/GSM/osmo-minioperator/run-dsp.sh /opt/GSM/osmo-minioperator/start.sh \
+    && install -d /etc/osmocom /var/lib/osmocom \
+    && cp /opt/GSM/osmo-minioperator/configs/*.cfg /etc/osmocom/
+
+# Dossier par defaut du conteneur + entrypoint : start.sh y lance le run DSP.
+WORKDIR /opt/GSM/osmo-minioperator
+ENTRYPOINT ["/opt/GSM/osmo-minioperator/start.sh"]

@@ -16,7 +16,8 @@ set -euo pipefail
 
 ROOT=/opt/GSM
 OSMO_OBS=${OSMO_OBS:-https://downloads.osmocom.org/packages/osmocom:/latest/xUbuntu_24.04}
-OSMO_KEY=${OSMO_KEY:-https://obs.osmocom.org/projects/osmocom/public_key}
+OSMO_ASC_URL=${OSMO_ASC_URL:-https://obs.osmocom.org/projects/osmocom/public_key}
+OSMOCOM_BB_REF=${OSMOCOM_BB_REF:-eac4eed1}
 FREECALYPSO_URL=${FREECALYPSO_URL:-https://raw.githubusercontent.com/bbaranoff/fc-magnetite/main/freecalypso-env}
 export DEBIAN_FRONTEND=noninteractive
 export GIT_TERMINAL_PROMPT=0
@@ -37,21 +38,24 @@ apt-get install -y --no-install-recommends \
     build-essential git gcc g++ make cmake autoconf automake libtool pkg-config \
     wget curl ca-certificates gnupg \
     python3 python3-dev python3-venv python3-pip python3-numpy python3-scipy \
-    libglib2.0-dev libpixman-1-dev libslirp-dev socat ninja-build
+    libglib2.0-dev libpixman-1-dev libslirp-dev socat ninja-build \
+    iproute2 procps psmisc util-linux
 
 # ── 2. Depot binaire Osmocom + pile reseau (.deb amont) ──────────────────────
 log "Depot Osmocom (OBS) + pile reseau"
 # Cle publique armee (.asc) en /usr/share/osmocom-keyring/ : le paquet
 # osmocom-keyring la met a jour la quand elle est etendue.
 install -d /usr/share/osmocom-keyring
-curl -fsSL "${OSMO_KEY}" -o /usr/share/osmocom-keyring/osmocom.asc
+curl -fsSL "${OSMO_ASC_URL}" -o /usr/share/osmocom-keyring/osmocom.asc
 echo "deb [signed-by=/usr/share/osmocom-keyring/osmocom.asc] ${OSMO_OBS}/ ./" \
     > /etc/apt/sources.list.d/osmocom.list
 apt-get update
 # libosmocore-dev : libosmocoding.pc + libosmocore.pc pour le link de c54x_exe.
+# osmo-stp : MSC et BSC parlent SS7 (M3UA) au travers de lui. telnet : provisioning
+# HLR par la VTY (run-dsp.sh).
 apt-get install -y --no-install-recommends \
-    libosmocore-dev \
-    osmo-hlr osmo-mgw osmo-msc osmo-bsc osmo-bts osmo-pcu osmo-trx \
+    libosmocore-dev telnet \
+    osmo-stp osmo-hlr osmo-mgw osmo-msc osmo-bsc osmo-bts osmo-pcu osmo-trx \
     osmo-sgsn osmo-ggsn osmo-sip-connector
 
 git config --global http.postBuffer 524288000
@@ -97,5 +101,26 @@ FREECALYPSO_URL="$FREECALYPSO_URL" bash rom/fetch-rom.sh --dest "$ROOT" --dest "
 curl -fsS --retry 2 -o "$ROOT/calypso_dsp.txt" "$FREECALYPSO_URL/dsp-rom-3606-dump.txt"
 cp "$ROOT/calypso_dsp.txt" rom/calypso_dsp.txt
 
+# ── 6. osmocom-bb : layer 2/3 (mobile), osmocon, trxcon ──────────────────────
+# Compile dans src/ avec `make nofirmware` (host tools, PAS le firmware). Pin
+# eac4eed1 : au-dela, trxcon sort de `make nofirmware`.
+log "osmocom-bb (make nofirmware dans src/)"
+if [ ! -x "$ROOT/osmocom-bb/src/host/layer23/src/mobile/mobile" ]; then
+    [ -d "$ROOT/osmocom-bb" ] || git clone https://gitea.osmocom.org/phone-side/osmocom-bb "$ROOT/osmocom-bb"
+    git -C "$ROOT/osmocom-bb" checkout -q "$OSMOCOM_BB_REF"
+    make -C "$ROOT/osmocom-bb/src" nofirmware
+else
+    echo "osmocom-bb deja compile, saute."
+fi
+# make nofirmware n'installe rien : on expose `mobile` dans le PATH.
+ln -sf "$ROOT/osmocom-bb/src/host/layer23/src/mobile/mobile" /usr/local/bin/mobile
+
+# ── 7. Configs figees (mono-operateur) -> /etc/osmocom ───────────────────────
+log "Configs figees -> /etc/osmocom"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+install -d /etc/osmocom /var/lib/osmocom
+cp "$HERE/configs/"*.cfg /etc/osmocom/
+chmod +x "$HERE/run-dsp.sh" "$HERE/start.sh" 2>/dev/null || true
+
 ldconfig
-log "Termine. qosmo=/usr/local/bin/qosmo  c54x_exe=$ROOT/c54x_exe/c54x_exe"
+log "Termine. Lancer l'operateur en DSP : $HERE/run-dsp.sh"

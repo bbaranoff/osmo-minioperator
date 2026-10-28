@@ -60,6 +60,7 @@ ARG ROOT=/opt/GSM
 RUN apt-get update && apt-get install -y --no-install-recommends \
       osmo-stp osmo-hlr osmo-mgw osmo-msc osmo-bsc osmo-bts osmo-pcu osmo-trx \
       osmo-sgsn osmo-ggsn osmo-sip-connector telnet \
+      asterisk asterisk-core-sounds-en pulseaudio-utils \
       libosmo-csn1-dev libosmo-gprs-rlcmac-dev libosmo-gprs-llc-dev \
       libosmo-gprs-gmm-dev libosmo-gprs-sm-dev libosmo-gprs-sndcp-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -87,14 +88,20 @@ RUN git clone https://gitea.osmocom.org/phone-side/osmocom-bb /opt/GSM/osmocom-b
     && make nofirmware \
     && ln -sf /opt/GSM/osmocom-bb/src/host/layer23/src/mobile/mobile /usr/local/bin/mobile
 
-# Configs figees (mono-operateur) + pont DSP + scripts.
+# Configs figees (mono-operateur) + pont DSP + scripts. Lien /opt/GSM/osmo-operator :
+# c54x_exe/run.sh lance le pont audio VSP par "cd /opt/GSM/osmo-operator && python3 -m pont.vsp_audio".
 COPY configs/ /opt/GSM/osmo-minioperator/configs/
+COPY configs/asterisk/ /etc/asterisk/
 COPY pont/ /opt/GSM/osmo-minioperator/pont/
 COPY run-dsp.sh start.sh /opt/GSM/osmo-minioperator/
 RUN chmod +x /opt/GSM/osmo-minioperator/run-dsp.sh /opt/GSM/osmo-minioperator/start.sh \
     && install -d /etc/osmocom /var/lib/osmocom /var/log/osmocom /root/.osmocom/bb \
     && cp /opt/GSM/osmo-minioperator/configs/*.cfg /etc/osmocom/ \
-    && cp /opt/GSM/osmo-minioperator/configs/mobile.cfg /root/.osmocom/bb/mobile.cfg
+    && cp /opt/GSM/osmo-minioperator/configs/mobile.cfg /root/.osmocom/bb/mobile.cfg \
+    && ln -s /opt/GSM/osmo-minioperator /opt/GSM/osmo-operator
+
+# Audio : le socket PulseAudio de l'hote est monte ici par docker-run.sh.
+ENV PULSE_SERVER=unix:/run/pulse/native
 
 WORKDIR /opt/GSM/osmo-minioperator
 ENTRYPOINT ["/opt/GSM/osmo-minioperator/start.sh"]

@@ -58,11 +58,13 @@ stop_all() {
         done
         rm -f "$PIDS"
     fi
-    # filet : les binaires lances comme applications
+    # filet : les binaires lances comme applications. pkill -f sur le chemin :
+    # le nom de process est tronque a 15 caracteres (osmo-sip-connec).
     for b in osmo-sip-connector osmo-ggsn osmo-sgsn osmo-pcu osmo-bts-trx \
              osmo-bsc osmo-msc osmo-mgw osmo-hlr osmo-stp; do
-        pkill -x "$b" 2>/dev/null || true
+        pkill -f "^/usr/bin/$b( |$)" 2>/dev/null || true
     done
+    asterisk -rx "core stop now" >/dev/null 2>&1 || pkill -x asterisk 2>/dev/null || true
 }
 
 case "${1:-}" in
@@ -105,6 +107,11 @@ app osmo-msc        osmo-msc.cfg
 app osmo-bsc        osmo-bsc.cfg
 app osmo-sgsn           osmo-sgsn.cfg
 app osmo-ggsn           osmo-ggsn.cfg
+# Asterisk (PBX : echo 600, annonce 700, Linphone 100/200), en application
+# (-f : pas de fork) sous l'utilisateur asterisk du paquet.
+install -d /var/spool/asterisk/monitor /var/run/asterisk /usr/share/asterisk/moh
+chown -R asterisk:asterisk /var/run/asterisk /var/log/asterisk /var/spool/asterisk /var/lib/asterisk 2>/dev/null
+app asterisk            ""  -f -g
 app osmo-sip-connector  osmo-sip-connector.cfg
 
 # ── Provisioning de l'abonne 1 dans le HLR (par la VTY, pas un service) ──────
@@ -146,12 +153,21 @@ export QOSMO="${QOSMO:-$GSM_ROOT/qosmo}"
 export MOBILE_CFG="${MOBILE_CFG:-/root/.osmocom/bb/mobile.cfg}"
 export BANC_VOCODEUR="${BANC_VOCODEUR:-hote}"
 export CALYPSO_VSP="${CALYPSO_VSP:-1}"
-# Reglages du banc reel d'osmo-operator (c54x_exe/run_real.sh) : DSP au rythme de
-# la BTS, une rafale TS0 par trame dans l'ordre des FN, livraison DMA/RIF.
-export IQ="${IQ:-none}" INSNS="${INSNS:-60000}" LOCKSTEP="${LOCKSTEP:-1}"
+# Reglages DSP du lancement osmo-operator (14-demarrage.sh) : rafale TS0 par
+# trame dans l ordre des FN, livraison DMA, 120000 insn/trame (vocodeur ROM).
+export IQ="${IQ:-none}" INSNS="${INSNS:-120000}" LOCKSTEP="${LOCKSTEP:-1}"
 export CALYPSO_RHEA_DMA_XFER="${CALYPSO_RHEA_DMA_XFER:-1}"
-export CALYPSO_BSP_DIRECT_FEED="${CALYPSO_BSP_DIRECT_FEED:-1}"
 export CALYPSO_BSP_STREAM="${CALYPSO_BSP_STREAM:-1}"
+# Vocodeur et parole montante ROM, comme osmo-operator (14-demarrage.sh) : sans
+# ces drapeaux de l'emulateur C54x, la ROM code la trame de silence et l'echo
+# 600 reste muet.
+for _kv in CALYPSO_NORM_TC=0 CALYPSO_C54X_BCTC_NORM=1 PONT_UL_RAW_TCH=1 \
+           CALYPSO_C54X_BCD_CARRY=1 CALYPSO_C54X_OVM_LOGIQUE=1 CALYPSO_MAC=1 \
+           CALYPSO_C54X_BCD_TC=1 CALYPSO_C54X_BCTC_COMBO=1; do
+    _k="${_kv%%=*}"; [ -n "${!_k+x}" ] || export "$_kv"
+done
+unset _kv _k
+pactl info >/dev/null 2>&1 || say "  pas de PulseAudio (${PULSE_SERVER:-defaut}) : appel muet - lancer le conteneur avec ./docker-run.sh"
 "$C54X/run.sh" || { say "ECHEC de la chaine DSP"; exit 1; }
 
 # ── BTS + PCU, une fois le pont a l'ecoute sur TRXC 5701 ─────────────────────

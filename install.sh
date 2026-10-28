@@ -59,7 +59,8 @@ apt-get install -y --no-install-recommends \
     osmo-stp osmo-hlr osmo-mgw osmo-msc osmo-bsc osmo-bts osmo-pcu osmo-trx \
     osmo-sgsn osmo-ggsn osmo-sip-connector \
     libosmo-csn1-dev libosmo-gprs-rlcmac-dev libosmo-gprs-llc-dev \
-    libosmo-gprs-gmm-dev libosmo-gprs-sm-dev libosmo-gprs-sndcp-dev
+    libosmo-gprs-gmm-dev libosmo-gprs-sm-dev libosmo-gprs-sndcp-dev \
+    asterisk asterisk-core-sounds-en pulseaudio-utils
 
 git config --global http.postBuffer 524288000
 mkdir -p "$ROOT"
@@ -123,7 +124,11 @@ log "Configs figees -> /etc/osmocom"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 install -d /etc/osmocom /var/lib/osmocom
 cp "$HERE/configs/"*.cfg /etc/osmocom/
-chmod +x "$HERE/run-dsp.sh" "$HERE/start.sh" 2>/dev/null || true
+install -d /root/.osmocom/bb && cp "$HERE/configs/mobile.cfg" /root/.osmocom/bb/mobile.cfg
+cp "$HERE/configs/asterisk/"*.conf /etc/asterisk/
+# c54x_exe/run.sh lance le pont audio VSP depuis /opt/GSM/osmo-operator.
+[ -e "$ROOT/osmo-operator" ] || ln -s "$HERE" "$ROOT/osmo-operator"
+chmod +x "$HERE/run-dsp.sh" "$HERE/start.sh" "$HERE/docker-run.sh" 2>/dev/null || true
 
 ldconfig
 log "Termine. Lancer l'operateur en DSP : $HERE/run-dsp.sh"

@@ -53,14 +53,13 @@ apt-get update
 # libosmocore-dev : libosmocoding.pc + libosmocore.pc pour le link de c54x_exe.
 # osmo-stp : MSC et BSC parlent SS7 (M3UA) au travers de lui. telnet : provisioning
 # HLR par la VTY (run-dsp.sh).
-# libosmo-gprs-rlcmac-dev : osmocom-bb (mobile/modem GPRS) le demande via
-# pkg-config (sinon "Package 'libosmo-gprs-rlcmac', required by 'virtual:world',
-# not found"). apt tire ses modules freres (csn1/llc...) en dependances.
+# libosmo-csn1-dev + libosmo-gprs-*-dev : requis par osmocom-bb (pkg-config).
 apt-get install -y --no-install-recommends \
     libosmocore-dev telnet \
     osmo-stp osmo-hlr osmo-mgw osmo-msc osmo-bsc osmo-bts osmo-pcu osmo-trx \
     osmo-sgsn osmo-ggsn osmo-sip-connector \
-    libosmo-gprs-rlcmac-dev
+    libosmo-csn1-dev libosmo-gprs-rlcmac-dev libosmo-gprs-llc-dev \
+    libosmo-gprs-gmm-dev libosmo-gprs-sm-dev libosmo-gprs-sndcp-dev
 
 git config --global http.postBuffer 524288000
 mkdir -p "$ROOT"

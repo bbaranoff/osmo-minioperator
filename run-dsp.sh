@@ -33,7 +33,7 @@ C54X="${C54X:-$GSM_ROOT/c54x_exe}"
 IMSI="${IMSI:-001010001000001}"
 MSISDN="${MSISDN:-100101}"
 KI_HEX="${KI_HEX:-00112233445566778899aabbccdd0101}"
-HLR_VTY_IP="${HLR_VTY_IP:-127.0.0.2}"
+HLR_VTY_IP="${HLR_VTY_IP:-127.0.0.1}"
 HLR_VTY_PORT="${HLR_VTY_PORT:-4258}"
 
 mkdir -p "$LOG_DIR"
@@ -107,15 +107,24 @@ app osmo-sip-connector  osmo-sip-connector.cfg
 
 # ── Provisioning de l'abonne 1 dans le HLR (par la VTY, pas un service) ──────
 say "provisioning HLR : IMSI=$IMSI MSISDN=$MSISDN"
-sleep 2
+for _ in $(seq 1 20); do
+    ss -ltnH 2>/dev/null | grep -q "$HLR_VTY_IP:$HLR_VTY_PORT " && break
+    sleep 0.5
+done
 {
+    sleep 1
     printf 'enable\r\n'
     printf 'subscriber imsi %s create\r\n' "$IMSI"
     printf 'subscriber imsi %s update msisdn %s\r\n' "$IMSI" "$MSISDN"
     printf 'subscriber imsi %s update aud2g comp128v1 ki %s\r\n' "$IMSI" "$KI_HEX"
-    sleep 1
-} | telnet "$HLR_VTY_IP" "$HLR_VTY_PORT" >"$LOG_DIR/hlr-provision.log" 2>&1 || \
-    say "  (provisioning VTY non confirme - voir hlr-provision.log)"
+    printf 'show subscriber imsi %s\r\n' "$IMSI"
+    sleep 2
+} | telnet "$HLR_VTY_IP" "$HLR_VTY_PORT" >"$LOG_DIR/hlr-provision.log" 2>&1
+if grep -q "$KI_HEX" "$LOG_DIR/hlr-provision.log"; then
+    say "  abonne provisionne (Ki present)"
+else
+    say "  ECHEC provisioning - voir $LOG_DIR/hlr-provision.log"
+fi
 
 # ── La chaine DSP ────────────────────────────────────────────────────────────
 # c54x_exe/run.sh porte DSP + qosmo (ARM+L1) + osmocon + mobile + pont_dsp.py.
@@ -135,4 +144,10 @@ export QOSMO="${QOSMO:-$GSM_ROOT/qosmo}"
 export MOBILE_CFG="${MOBILE_CFG:-/root/.osmocom/bb/mobile.cfg}"
 export BANC_VOCODEUR="${BANC_VOCODEUR:-hote}"
 export CALYPSO_VSP="${CALYPSO_VSP:-1}"
+# Reglages du banc reel d'osmo-operator (c54x_exe/run_real.sh) : DSP au rythme de
+# la BTS, une rafale TS0 par trame dans l'ordre des FN, livraison DMA/RIF.
+export IQ="${IQ:-none}" INSNS="${INSNS:-60000}" LOCKSTEP="${LOCKSTEP:-1}"
+export CALYPSO_RHEA_DMA_XFER="${CALYPSO_RHEA_DMA_XFER:-1}"
+export CALYPSO_BSP_DIRECT_FEED="${CALYPSO_BSP_DIRECT_FEED:-1}"
+export CALYPSO_BSP_STREAM="${CALYPSO_BSP_STREAM:-1}"
 exec "$C54X/run.sh"

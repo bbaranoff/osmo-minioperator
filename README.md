@@ -11,7 +11,7 @@ la pile réseau Osmocom (paquets `.deb` officiels), Asterisk, et un téléphone 
 La **voix descendante** est décodée par le vocodeur de la ROM du DSP et sort sur son port voix
 (annonce « echo test » du 600) ; la **voix montante** est codée par la même ROM : un son
 injecté dans le micro du mobile revient par l'écho du 600. Vérifié par `./verif.sh`
-(3 appels sur 3, voir [Version vérifiée](#version-vérifiée)).
+(2 appels sur 2, voir [Version vérifiée](#version-vérifiée)).
 
 ## Le mode : DSP, vocodeur ROM (l1phy)
 
@@ -149,7 +149,7 @@ hangup 1
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `INSNS` | 60000 | instructions DSP par trame. 120000 marche aussi sur une machine rapide ; sur un CPU plus lent le DSP décroche face à la BTS et le LU échoue |
+| `INSNS` | 60000 | instructions DSP par trame ; valeur vérifiée |
 | `PONT_NOMTXPOWER` | 23 | puissance nominale renvoyée à osmo-bts-trx |
 | `PULSE_SERVER` | `unix:/run/pulse/native` | serveur PulseAudio utilisé par le pont VSP |
 
@@ -168,7 +168,7 @@ hangup 1
 
 ## Version vérifiée
 
-**Commit fonctionnel : [`5a51fb0`](https://github.com/bbaranoff/osmo-minioperator/commit/5a51fb0)** — vérifié le **2026-10-28**.
+**Commit fonctionnel : [`d5e89a4`](https://github.com/bbaranoff/osmo-minioperator/commit/d5e89a4)** — vérifié le **2026-10-28**.
 
 Image reconstruite de zéro (`docker build -t osmo-minioperator . --no-cache`, ~3 min),
 lancée avec l'audio de l'hôte (`./docker-run.sh`), puis `./verif.sh` :
@@ -180,8 +180,7 @@ lancée avec l'audio de l'hôte (`./docker-run.sh`), puis `./verif.sh` :
 ```
 
 LU ACCEPT, 2 appels sur 2 vers le 600, voix descendante (vocodeur ROM sur `gsm_audio`)
-et montante (1 kHz renvoyé par l'écho). Défaut `INSNS=60000` ; `INSNS=120000` passe
-aussi sur cette machine, mais sur un CPU plus lent le DSP décroche et le LU échoue.
+et montante (1 kHz renvoyé par l'écho), au défaut `INSNS=60000`.
 `install.sh` (natif) n'est pas couvert par cette vérification.
 
 Les dépôts compilés au build sont figés par `git checkout` (Dockerfile et `install.sh`) :

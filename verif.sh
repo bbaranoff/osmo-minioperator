@@ -2,7 +2,7 @@
 # Copyright (C) 2026 Bastien Baranoff
 # SPDX-License-Identifier: GPL-3.0-or-later
 # verif.sh - verdict automatique de l'operateur en mode DSP :
-#   1. (re)lance tout avec run-dsp.sh (sauf --no-restart)
+#   1. utilise la pile deja lancee ; sinon (ou avec --restart) la lance par run-dsp.sh
 #   2. attend le LOCATION UPDATING ACCEPT
 #   3. N appels au 600 (echo Asterisk), pour chacun :
 #        appel      : canal Asterisk Up
@@ -10,18 +10,19 @@
 #        voix UL    : un 1 kHz injecte dans gsm_mic (micro du mobile) revient par l'echo
 #   4. resume ; code de sortie 0 si tout est OK
 #
-#   ./verif.sh                     relance + 2 appels
-#   ./verif.sh --appels 3          relance + 3 appels
-#   ./verif.sh --no-restart        sur la pile deja lancee
+#   ./verif.sh                     2 appels (lance la pile si elle ne tourne pas)
+#   ./verif.sh --appels 3          3 appels
+#   ./verif.sh --restart           relance toute la pile d'abord (le LU en cours est perdu)
 #
 # Les enregistrements de chaque appel restent dans /tmp/verif/ (s16le 8 kHz mono).
 # Avec le PulseAudio de l'hote, l'annonce et le 1 kHz s'entendent dans les haut-parleurs.
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APPELS=2 RESTART=1
+APPELS=2 RESTART=auto
 while [ $# -gt 0 ]; do
     case "$1" in
         --appels) APPELS="$2"; shift ;;
+        --restart) RESTART=1 ;;
         --no-restart) RESTART=0 ;;
         -h|--help) sed -n '4,17p' "$0"; exit 0 ;;
         *) echo "option inconnue : $1" >&2; exit 2 ;;
@@ -34,6 +35,15 @@ LU_TIMEOUT="${LU_TIMEOUT:-300}"
 
 say() { printf '\033[1m[verif]\033[0m %s\n' "$*"; }
 
+# Par defaut, ne pas casser une pile qui tourne (et son LU) : on ne relance que
+# si le mobile ou le pont manquent.
+if [ "$RESTART" = auto ]; then
+    if pgrep -x mobile >/dev/null && pgrep -f 'pont/pont_dsp[.]py' >/dev/null; then
+        RESTART=0; say "pile deja lancee : utilisee telle quelle (--restart pour la relancer)"
+    else
+        RESTART=1
+    fi
+fi
 if [ "$RESTART" = 1 ]; then
     say "lancement de la pile (run-dsp.sh) ..."
     "$HERE/run-dsp.sh" > "$LOG_DIR/../verif-run-dsp.log" 2>&1 || { say "ECHEC run-dsp.sh (voir $LOG_DIR/../verif-run-dsp.log)"; exit 1; }

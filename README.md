@@ -24,7 +24,7 @@ injecté dans le micro du mobile revient par l'écho du 600. Vérifié par `./ve
 | Port voix | SP0 modélisé (`CALYPSO_VSP=1`) ↔ `pont/vsp_audio.py` ↔ PulseAudio (`gsm_audio` / `gsm_mic`) |
 | Données | `tch-data io-handler unix-sock`, format `ti` |
 | Radio | BTS `osmo-bts-trx` ↔ `pont/pont_dsp.py` (TRXC/TRXD 5700-5702) ↔ BSP du DSP (UDP 6702) |
-| Rythme DSP | 80000 instructions/trame, LOCKSTEP=1, `CALYPSO_BSP_STREAM=1`, `CALYPSO_RHEA_DMA_XFER=1` |
+| Rythme DSP | 60000 instructions/trame, LOCKSTEP=1, `CALYPSO_BSP_STREAM=1`, `CALYPSO_RHEA_DMA_XFER=1` |
 
 Les drapeaux de l'émulateur C54x du profil « vocodeur ROM » d'osmo-operator
 (`CALYPSO_MAC`, `CALYPSO_C54X_BCD_*`, `CALYPSO_C54X_OVM_LOGIQUE`, `CALYPSO_NORM_TC=0`…)
@@ -149,7 +149,7 @@ hangup 1
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `INSNS` | 80000 | instructions DSP par trame. À 60000 la ROM ne code plus la parole montante ; à 120000 le DSP est trop lent face à la BTS et le LU échoue |
+| `INSNS` | 60000 | instructions DSP par trame. 120000 marche aussi sur une machine rapide ; sur un CPU plus lent le DSP décroche face à la BTS et le LU échoue |
 | `PONT_NOMTXPOWER` | 23 | puissance nominale renvoyée à osmo-bts-trx |
 | `PULSE_SERVER` | `unix:/run/pulse/native` | serveur PulseAudio utilisé par le pont VSP |
 
@@ -168,15 +168,21 @@ hangup 1
 
 ## Version vérifiée
 
-**Commit fonctionnel : [`d9c32bc`](https://github.com/bbaranoff/osmo-minioperator/commit/d9c32bc)**
-— image construite depuis ce commit, conteneur **sans `--privileged`** (droits de
-`docker-run.sh`), `./verif.sh --appels 3` : LU ACCEPT puis 3 appels sur 3 OK, voix
-descendante (RMS ≈ 4700 sur `gsm_audio`) et montante (1 kHz renvoyé par l'écho). Le
-commit suivant (`7a4400f`) déplace seulement la préparation de `start.sh` dans
-`run-dsp.sh`. `install.sh` (natif) n'est pas couvert par cette vérification.
-Cette vérification a été faite à `INSNS=120000`. À 60000, `verif.sh` donne la voix
-descendante mais plus la montante (le 1 kHz ne revient pas). Le défaut est 80000, compromis
-entre le LU et la voix montante, pas encore revérifié par `verif.sh`.
+**Commit fonctionnel : [`5a51fb0`](https://github.com/bbaranoff/osmo-minioperator/commit/5a51fb0)** — vérifié le **2026-10-28**.
+
+Image reconstruite de zéro (`docker build -t osmo-minioperator . --no-cache`, ~3 min),
+lancée avec l'audio de l'hôte (`./docker-run.sh`), puis `./verif.sh` :
+
+```
+[verif] appel 1 : OK  | etabli oui | voix DL oui (RMS max 8028) | voix UL (echo 1 kHz) oui (part 1 kHz 1.00)
+[verif] appel 2 : OK  | etabli oui | voix DL oui (RMS max 5112) | voix UL (echo 1 kHz) oui (part 1 kHz 1.00)
+[verif] VERDICT : OK - attachement, appels, voix descendante et montante
+```
+
+LU ACCEPT, 2 appels sur 2 vers le 600, voix descendante (vocodeur ROM sur `gsm_audio`)
+et montante (1 kHz renvoyé par l'écho). Défaut `INSNS=60000` ; `INSNS=120000` passe
+aussi sur cette machine, mais sur un CPU plus lent le DSP décroche et le LU échoue.
+`install.sh` (natif) n'est pas couvert par cette vérification.
 
 Les dépôts compilés au build sont figés par `git checkout` (Dockerfile et `install.sh`) :
 

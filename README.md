@@ -168,19 +168,11 @@ hangup 1
 
 ## Version vérifiée
 
-**Commit fonctionnel : [`d5e89a4`](https://github.com/bbaranoff/osmo-minioperator/commit/d5e89a4)** — vérifié le **2026-10-28**.
-
-Image reconstruite de zéro (`docker build -t osmo-minioperator . --no-cache`, ~3 min),
-lancée avec l'audio de l'hôte (`./docker-run.sh`), puis `./verif.sh` :
-
-```
-[verif] appel 1 : OK  | etabli oui | voix DL oui (RMS max 8028) | voix UL (echo 1 kHz) oui (part 1 kHz 1.00)
-[verif] appel 2 : OK  | etabli oui | voix DL oui (RMS max 5112) | voix UL (echo 1 kHz) oui (part 1 kHz 1.00)
-[verif] VERDICT : OK - attachement, appels, voix descendante et montante
-```
+**Commit fonctionnel : [`33cc0f2`](https://github.com/bbaranoff/osmo-minioperator/commit/33cc0f2)** — vérifié le **2026-10-29**
+(détail, commandes et sorties complètes : [Tests](#tests)).
 
 LU ACCEPT, 2 appels sur 2 vers le 600, voix descendante (vocodeur ROM sur `gsm_audio`)
-et montante (1 kHz renvoyé par l'écho), au défaut `INSNS=60000`.
+et montante (1 kHz renvoyé par l'écho), à `INSNS=120000` (défaut de `run-dsp.sh`).
 `install.sh` (natif) n'est pas couvert par cette vérification.
 
 Les dépôts compilés au build sont figés par `git checkout` (Dockerfile et `install.sh`) :
@@ -200,6 +192,95 @@ Les paquets viennent du dépôt `osmocom:latest`, qui évolue ; versions de la v
 osmo-stp 2.3.0, osmo-hlr 1.9.4, osmo-mgw 1.16.1, osmo-msc 1.16.0, osmo-bsc 1.15.0,
 osmo-bts-trx 1.12.0, osmo-pcu 1.5.3, osmo-sip-connector 1.7.2, libosmocore 1.14.2,
 Asterisk 20.6.0 (Ubuntu 24.04).
+
+# Tests
+
+Campagne du **2026-10-29**, hôte Ubuntu 24.04 avec PulseAudio système
+(`/run/pulse/native`).
+
+### 1. Construction de zéro
+
+```bash
+sudo docker build -t osmo-minioperator . --no-cache      # 250 s
+```
+
+Les deux contrôles de la ROM DSP passent au build :
+
+```
+somme de controle verifiee (SHA256SUMS.3606)
+ROM DSP 3606 ecrite dans /opt/GSM
+ROM DSP 3606 ecrite dans /opt/GSM/c54x_exe/rom
+/opt/GSM/calypso_dsp.txt: OK
+```
+
+### 2. Verdict à `INSNS=60000` (ancien défaut) : échec du montant
+
+```bash
+sudo docker run --rm --init --cap-add NET_ADMIN --cap-add SYS_NICE --device /dev/net/tun \
+     -v /run/pulse/native:/run/pulse/native --device /dev/snd osmo-minioperator ./verif.sh
+```
+
+```
+[verif] lancement de la pile (run-dsp.sh) ...
+[verif] attente du LOCATION UPDATING ACCEPT (max 300s) ...
+[verif] LU ACCEPT (en 10s)
+[verif] recalage du mobile apres le LU (20 s) ...
+[verif] appel 1/2 vers 600 ...
+[verif] appel 1 : ECHEC  | etabli oui | voix DL oui (RMS max 24985) | voix UL (echo 1 kHz) NON (part 1 kHz 0.01)
+[verif] appel 2/2 vers 600 ...
+[verif] appel 2 : ECHEC  | etabli oui | voix DL oui (RMS max 20971) | voix UL (echo 1 kHz) NON (part 1 kHz 0.01)
+[verif] VERDICT : ECHEC (voir ci-dessus)
+```
+
+Attachement, établissement et voix descendante passent ; la voix montante non.
+Sur un conteneur neuf, `verif.sh` échouait aussi avant même de lancer la pile
+(`/run/osmo-minioperator/logs` absent) : corrigé en `673d80a`.
+
+### 3. Verdict à `INSNS=120000` : OK
+
+```bash
+sudo ./docker-run.sh
+# dans le conteneur :
+INSNS=120000 ./run-dsp.sh       # 120000 est le défaut depuis 33cc0f2
+./verif.sh
+```
+
+```
+[run-dsp] configs : /etc/osmocom    logs : /run/osmo-minioperator/logs
+[run-dsp]   start osmo-stp (3023)  cfg=osmo-stp.cfg
+[run-dsp]   start osmo-hlr (3026)  cfg=osmo-hlr.cfg
+[run-dsp]   start osmo-mgw (3029)  cfg=osmo-mgw.cfg
+[run-dsp]   start osmo-msc (3032)  cfg=osmo-msc.cfg
+[run-dsp]   start osmo-bsc (3035)  cfg=osmo-bsc.cfg
+[run-dsp]   start osmo-sgsn (3038)  cfg=osmo-sgsn.cfg
+[run-dsp]   start osmo-ggsn (3041)  cfg=osmo-ggsn.cfg
+[run-dsp]   start asterisk (3046)  cfg=aucune
+[run-dsp]   start osmo-sip-connector (3097)  cfg=osmo-sip-connector.cfg
+[run-dsp] provisioning HLR : IMSI=001010001000001 MSISDN=100101
+[run-dsp]   abonne provisionne (Ki present)
+[run-dsp] demarrage de la chaine DSP (MODE=dsp PONT=1)
+[run-dsp]   audio : unix:/run/pulse/native (PulseAudio de l'hote)
+[run dsp] 1. c54x_exe --arm  pid 3127  (120000 insn/trame, iq=none, /dev/shm/calypso_api_ram, /tmp/calypso_dsp.sock)
+[run dsp] 2. qemu-system-arm  pid 3136  pty modem /dev/pts/1  moniteur /tmp/qemu-monitor-pont.sock  L1=DSP externe
+[run dsp]    gdb ARM : telnet 0 44444  (stub tcp::1234, journal /tmp/c54x-pont/gdb.log)
+[run dsp] 3. osmocon  pid 3157  L1CTL sur /tmp/osmocom_l2
+[run dsp] 4. mobile  pid 3186  config /root/.osmocom/bb/mobile.cfg  vty telnet 127.0.0.1 4247
+[run dsp] 5. pont.py  pid 3195  TRXD 5700-5702 <- BTS ; vers le DSP (udp 6702)
+[run dsp] 5b. pont audio VSP  pid 3211  gsm_mic.monitor -> calypso_pcm_ul, calypso_pcm_dl -> gsm_audio
+[run dsp] tout tourne. Journaux : /tmp/c54x-pont/*.log   suivre : ./run.sh --logs   arreter : ./run.sh --stop
+[run-dsp]   start osmo-bts-trx (3218)  cfg=osmo-bts-trx.cfg
+[run-dsp]   start osmo-pcu (3233)  cfg=osmo-pcu.cfg
+[run-dsp] pret. LU : grep -c 'LOCATION UPDATING ACCEPT' /tmp/c54x-pont/mobile.log
+
+[verif] pile deja lancee : utilisee telle quelle (--restart pour la relancer)
+[verif] attente du LOCATION UPDATING ACCEPT (max 300s) ...
+[verif] LU ACCEPT (deja obtenu)
+[verif] appel 1/2 vers 600 ...
+[verif] appel 1 : OK  | etabli oui | voix DL oui (RMS max 4307) | voix UL (echo 1 kHz) oui (part 1 kHz 0.82)
+[verif] appel 2/2 vers 600 ...
+[verif] appel 2 : OK  | etabli oui | voix DL oui (RMS max 4491) | voix UL (echo 1 kHz) oui (part 1 kHz 0.82)
+[verif] VERDICT : OK - attachement, appels, voix descendante et montante
+```
 
 ## Licence et attributions
 

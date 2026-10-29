@@ -2,7 +2,7 @@
 # Copyright (C) 2026 Bastien Baranoff
 # SPDX-License-Identifier: GPL-3.0-or-later
 # tests-cli.sh - rejoue tests.ipynb (section Tests du README : build, verif.sh a
-# INSNS=60000 puis 120000) en ligne de commande, cellule par cellule, enregistre
+# INSNS=120000) en ligne de commande, cellule par cellule, enregistre
 # avec asciinema. Les figures sont ecrites en PNG dans tests-out/.
 #
 #   ./tests-cli.sh                       build --no-cache + 2 verdicts, -> tests-out/campagne.cast

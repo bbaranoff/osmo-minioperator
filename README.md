@@ -211,6 +211,9 @@ Asterisk 20.6.0 (Ubuntu 24.04).
 Campagne du **2026-10-29**, hôte Ubuntu 24.04 avec PulseAudio système
 (`/run/pulse/native`).
 
+Pas à pas rejouable : `tests.ipynb` (Jupyter), ou en ligne de commande enregistré avec
+asciinema : `./tests-cli.sh` (→ `tests-out/campagne.cast`, `asciinema play` pour le revoir).
+
 ### 1. Construction de zéro
 
 ```bash
@@ -226,35 +229,12 @@ ROM DSP 3606 ecrite dans /opt/GSM/c54x_exe/rom
 /opt/GSM/calypso_dsp.txt: OK
 ```
 
-### 2. Verdict à `INSNS=60000` (ancien défaut) : échec du montant
-
-```bash
-sudo docker run --rm --init --cap-add NET_ADMIN --cap-add SYS_NICE --device /dev/net/tun \
-     -v /run/pulse/native:/run/pulse/native --device /dev/snd osmo-minioperator ./verif.sh
-```
-
-```
-[verif] lancement de la pile (run-dsp.sh) ...
-[verif] attente du LOCATION UPDATING ACCEPT (max 300s) ...
-[verif] LU ACCEPT (en 10s)
-[verif] recalage du mobile apres le LU (20 s) ...
-[verif] appel 1/2 vers 600 ...
-[verif] appel 1 : ECHEC  | etabli oui | voix DL oui (RMS max 24985) | voix UL (echo 1 kHz) NON (part 1 kHz 0.01)
-[verif] appel 2/2 vers 600 ...
-[verif] appel 2 : ECHEC  | etabli oui | voix DL oui (RMS max 20971) | voix UL (echo 1 kHz) NON (part 1 kHz 0.01)
-[verif] VERDICT : ECHEC (voir ci-dessus)
-```
-
-Attachement, établissement et voix descendante passent ; la voix montante non.
-Sur un conteneur neuf, `verif.sh` échouait aussi avant même de lancer la pile
-(`/run/osmo-minioperator/logs` absent) : corrigé en `673d80a`.
-
-### 3. Verdict à `INSNS=120000` : OK
+### 2. Verdict à `INSNS=120000` : OK
 
 ```bash
 sudo ./docker-run.sh
 # dans le conteneur :
-INSNS=120000 ./run-dsp.sh       # 120000 est le défaut depuis 33cc0f2
+INSNS=120000 ./run-dsp.sh       # 120000 est le défaut de run-dsp.sh
 ./verif.sh
 ```
 

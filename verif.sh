@@ -46,6 +46,7 @@ if [ "$RESTART" = auto ]; then
 fi
 if [ "$RESTART" = 1 ]; then
     say "lancement de la pile (run-dsp.sh) ..."
+    mkdir -p "$LOG_DIR"   # conteneur neuf : run-dsp.sh ne l'a pas encore cree
     "$HERE/run-dsp.sh" > "$LOG_DIR/../verif-run-dsp.log" 2>&1 || { say "ECHEC run-dsp.sh (voir $LOG_DIR/../verif-run-dsp.log)"; exit 1; }
 fi
 [ -r "$LOG_DIR/pulse_server" ] && export PULSE_SERVER="$(cat "$LOG_DIR/pulse_server")"

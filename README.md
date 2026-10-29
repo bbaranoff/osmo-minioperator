@@ -197,8 +197,8 @@ Les dépôts compilés au build sont figés par `git checkout` (Dockerfile et `i
 | [firmware](https://github.com/bbaranoff/firmware) | `cb97f3f6a071726b52b6c7fd88f096b0d5bbfb48` |
 | [osmocom-bb](https://gitea.osmocom.org/phone-side/osmocom-bb) | `eac4eed1eff1003517fbc3e48c360a525707c4ab` |
 
-La ROM DSP est tirée de [fc-magnetite](https://github.com/bbaranoff/fc-magnetite) au
-commit `2af596fc74226945bbdaeeadc440ec76bba80766` (plus la branche `main`) et son dump
+La ROM DSP est tirée de FreeCalypso
+(<https://www.freecalypso.org/pub/GSM/Calypso/dsp-rom-3606-dump.txt>) et son dump
 `dsp-rom-3606-dump.txt` est vérifié en SHA-256 (`e35798f5…`) au `curl` comme au `fetch-rom.sh`.
 
 Les paquets viennent du dépôt `osmocom:latest`, qui évolue ; versions de la vérification :

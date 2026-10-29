@@ -95,8 +95,8 @@ RUN GIT_TERMINAL_PROMPT=0 git clone https://github.com/bbaranoff/firmware /opt/G
 # c54x_exe : CFLAGS sans -march=native (SIGILL sur un autre CPU que l'hote de build).
 # Commit fige (verifie : LU + voix ROM).
 ARG C54X_EXE_REF=0097a4be162733e0edf6cc2eab2db5110a12bfa4
-# Commit fige de fc-magnetite (pas la branche main) + SHA-256 du dump ROM DSP 3606.
-ARG FREECALYPSO_URL=https://raw.githubusercontent.com/bbaranoff/fc-magnetite/2af596fc74226945bbdaeeadc440ec76bba80766/freecalypso-env
+# Dump ROM DSP 3606 publie par FreeCalypso + son SHA-256.
+ARG FREECALYPSO_URL=https://www.freecalypso.org/pub/GSM/Calypso
 ARG CALYPSO_DSP_SHA256=e35798f50fd0a29aa61cd53e417c010d7f172582c7bc055211daab8af1e05470
 ARG C54X_DEB=c54x-exe_0.git20261028.0097a4b_amd64.deb
 ARG C54X_DEB_SHA256=735c86c175210fca760a97879707abdb079be260c73df1835334b75b1c6ea81d

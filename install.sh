@@ -24,8 +24,8 @@ OSMOCOM_BB_REF=${OSMOCOM_BB_REF:-eac4eed1}
 QOSMO_REF=${QOSMO_REF:-cc9c9c02ed0cab3b4eef7917062923df94e3809e}
 C54X_EXE_REF=${C54X_EXE_REF:-0097a4be162733e0edf6cc2eab2db5110a12bfa4}
 FIRMWARE_REF=${FIRMWARE_REF:-cb97f3f6a071726b52b6c7fd88f096b0d5bbfb48}
-# Commit fige de fc-magnetite (pas la branche main) : la ROM DSP ne bouge pas.
-FREECALYPSO_URL=${FREECALYPSO_URL:-https://raw.githubusercontent.com/bbaranoff/fc-magnetite/2af596fc74226945bbdaeeadc440ec76bba80766/freecalypso-env}
+# Dump ROM DSP publie par FreeCalypso (hote freecalypso.org).
+FREECALYPSO_URL=${FREECALYPSO_URL:-https://www.freecalypso.org/pub/GSM/Calypso}
 # SHA-256 du dump ROM DSP 3606 verifie (dsp-rom-3606-dump.txt -> calypso_dsp.txt).
 CALYPSO_DSP_SHA256=${CALYPSO_DSP_SHA256:-e35798f50fd0a29aa61cd53e417c010d7f172582c7bc055211daab8af1e05470}
 export DEBIAN_FRONTEND=noninteractive

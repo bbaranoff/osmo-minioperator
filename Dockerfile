@@ -40,25 +40,41 @@ WORKDIR ${ROOT}
 
 FROM base AS qemu
 ARG ROOT=/opt/GSM
+# BUILD_DEB=0 (defaut) : qosmo et c54x_exe viennent des .deb de la release
+# (verifies en SHA-256). BUILD_DEB=1 : compiles depuis les sources aux commits
+# figes ci-dessous, puis ./make-debs.sh refait les .deb a partir de l'image.
+ARG BUILD_DEB=0
+ARG DEB_URL=https://github.com/bbaranoff/osmo-minioperator/releases/download/debs-2026-10-29
+ARG QOSMO_DEB=qosmo_0.git20261028.cc9c9c02_amd64.deb
+ARG QOSMO_DEB_SHA256=3e59e47712eca1ea368b624ffc40791a92737d35b20d260154f3b0511252db98
 # Commit fige (verifie : LU + voix ROM).
 ARG QOSMO_REF=cc9c9c02ed0cab3b4eef7917062923df94e3809e
-RUN git clone https://github.com/bbaranoff/qosmO /opt/GSM/qosmo \
-    && cd /opt/GSM/qosmo \
-    && git checkout -q ${QOSMO_REF} \
-    && python3 -m venv /root/.venv-qemu \
-    && . /root/.venv-qemu/bin/activate \
-    && pip install --no-cache-dir tomli \
-    && mkdir -p build && cd build \
-    && ../configure --target-list=arm-softmmu --enable-l1-grgsm \
-           --prefix=/opt/GSM/qemu-install --disable-werror --disable-docs \
-    && make -j"$(nproc)" \
-    && make install \
-    && cp /opt/GSM/qemu-install/bin/qemu-system-arm /usr/local/bin/qemu-system-arm \
-    && cp /opt/GSM/qemu-install/bin/qosmo /usr/local/bin/qosmo
+RUN if [ "$BUILD_DEB" = 1 ]; then \
+      git clone https://github.com/bbaranoff/qosmO /opt/GSM/qosmo \
+      && cd /opt/GSM/qosmo \
+      && git checkout -q ${QOSMO_REF} \
+      && python3 -m venv /root/.venv-qemu \
+      && . /root/.venv-qemu/bin/activate \
+      && pip install --no-cache-dir tomli \
+      && mkdir -p build && cd build \
+      && ../configure --target-list=arm-softmmu --enable-l1-grgsm \
+             --prefix=/opt/GSM/qemu-install --disable-werror --disable-docs \
+      && make -j"$(nproc)" \
+      && make install \
+      && cp /opt/GSM/qemu-install/bin/qemu-system-arm /usr/local/bin/qemu-system-arm \
+      && cp /opt/GSM/qemu-install/bin/qosmo /usr/local/bin/qosmo; \
+    else \
+      curl -fsSL --retry 2 -o "/tmp/$QOSMO_DEB" "$DEB_URL/$QOSMO_DEB" \
+      && echo "$QOSMO_DEB_SHA256  /tmp/$QOSMO_DEB" | sha256sum -c - \
+      && apt-get update && apt-get install -y --no-install-recommends "/tmp/$QOSMO_DEB" \
+      && rm -rf /var/lib/apt/lists/* "/tmp/$QOSMO_DEB"; \
+    fi
 
 
 FROM qemu AS c54x
 ARG ROOT=/opt/GSM
+ARG BUILD_DEB
+ARG DEB_URL
 
 # Pile Osmocom reseau depuis les .deb amont (osmo-stp inclus : SS7/M3UA).
 # libosmo-csn1-dev + libosmo-gprs-*-dev : requis par osmocom-bb (pkg-config).
@@ -82,11 +98,21 @@ ARG C54X_EXE_REF=0097a4be162733e0edf6cc2eab2db5110a12bfa4
 # Commit fige de fc-magnetite (pas la branche main) + SHA-256 du dump ROM DSP 3606.
 ARG FREECALYPSO_URL=https://raw.githubusercontent.com/bbaranoff/fc-magnetite/2af596fc74226945bbdaeeadc440ec76bba80766/freecalypso-env
 ARG CALYPSO_DSP_SHA256=e35798f50fd0a29aa61cd53e417c010d7f172582c7bc055211daab8af1e05470
-RUN git clone https://github.com/bbaranoff/c54x_exe /opt/GSM/c54x_exe \
+ARG C54X_DEB=c54x-exe_0.git20261028.0097a4b_amd64.deb
+ARG C54X_DEB_SHA256=735c86c175210fca760a97879707abdb079be260c73df1835334b75b1c6ea81d
+RUN if [ "$BUILD_DEB" = 1 ]; then \
+      git clone https://github.com/bbaranoff/c54x_exe /opt/GSM/c54x_exe \
+      && cd /opt/GSM/c54x_exe \
+      && git checkout -q ${C54X_EXE_REF} \
+      && make QOSMO=/opt/GSM/qosmo \
+             CFLAGS="-O3 -g -Wall -Werror=format -Werror=format-extra-args -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-sign-compare"; \
+    else \
+      curl -fsSL --retry 2 -o "/tmp/$C54X_DEB" "$DEB_URL/$C54X_DEB" \
+      && echo "$C54X_DEB_SHA256  /tmp/$C54X_DEB" | sha256sum -c - \
+      && apt-get update && apt-get install -y --no-install-recommends "/tmp/$C54X_DEB" \
+      && rm -rf /var/lib/apt/lists/* "/tmp/$C54X_DEB"; \
+    fi \
     && cd /opt/GSM/c54x_exe \
-    && git checkout -q ${C54X_EXE_REF} \
-    && make QOSMO=/opt/GSM/qosmo \
-           CFLAGS="-O3 -g -Wall -Werror=format -Werror=format-extra-args -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-sign-compare" \
     && FREECALYPSO_URL="$FREECALYPSO_URL" bash rom/fetch-rom.sh --dest /opt/GSM --dest /opt/GSM/c54x_exe/rom \
     && curl -fsS --retry 2 -o /opt/GSM/calypso_dsp.txt "$FREECALYPSO_URL/dsp-rom-3606-dump.txt" \
     && echo "${CALYPSO_DSP_SHA256}  /opt/GSM/calypso_dsp.txt" | sha256sum -c - \

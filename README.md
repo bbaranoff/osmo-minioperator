@@ -66,6 +66,18 @@ sudo ./docker-run.sh
 ./verif.sh              # dans le conteneur : verdict en une commande
 ```
 
+Par défaut, qosmo et c54x_exe sont installés depuis les `.deb` de la release
+[`debs-2026-10-29`](https://github.com/bbaranoff/osmo-minioperator/releases/tag/debs-2026-10-29)
+(SHA-256 vérifiés dans le `Dockerfile`, ~2 min de build). La mask-ROM TI du DSP n'y est pas :
+`rom/fetch-rom.sh` la télécharge et la vérifie au build, dans les deux modes.
+
+Pour compiler qosmo et c54x_exe depuis les sources (commits figés) et refaire les `.deb` :
+
+```bash
+sudo docker build -t osmo-minioperator:src --build-arg BUILD_DEB=1 .   # ~4-5 min
+sudo IMG=osmo-minioperator:src ./make-debs.sh                          # -> ./debs/*.deb + SHA256SUMS
+```
+
 `docker-run.sh` monte le socket PulseAudio de l'hôte : **sans lui on n'entend rien**
 (la voix circule quand même dans un PulseAudio local, et `verif.sh` la mesure).
 L'équivalent à la main :
@@ -163,6 +175,7 @@ hangup 1
 | `start.sh` | entrypoint du conteneur |
 | `docker-run.sh` | `docker run` avec l'audio de l'hôte, sans `--privileged` |
 | `verif.sh` | verdict automatique : LU + appels au 600, voix DL et UL |
+| `make-debs.sh` | `.deb` de qosmo et c54x_exe tirés d'une image `BUILD_DEB=1` |
 | `configs/` | configs Osmocom et mobile figées ; `configs/asterisk/` |
 | `pont/` | pont TRX ↔ DSP et pont audio VSP (repris d'osmo-operator) |
 

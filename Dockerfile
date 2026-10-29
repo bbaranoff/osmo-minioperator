@@ -3,6 +3,13 @@
 # Copyright (C) 2026 Bastien Baranoff
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+# BUILD_DEB=0 (defaut) : qosmo et c54x_exe viennent des .deb de la release
+# (verifies en SHA-256). BUILD_DEB=1 : compiles depuis les sources aux commits
+# figes, puis ./make-debs.sh refait les .deb a partir de l'image.
+# ARG globaux : chaque etage les redeclare sans valeur (un ARG ne traverse pas un FROM).
+ARG BUILD_DEB=0
+ARG DEB_URL=https://github.com/bbaranoff/osmo-minioperator/releases/download/debs-2026-10-29
+
 FROM ubuntu:24.04 AS base
 ARG DEBIAN_FRONTEND=noninteractive
 ARG ROOT=/opt/GSM
@@ -40,11 +47,8 @@ WORKDIR ${ROOT}
 
 FROM base AS qemu
 ARG ROOT=/opt/GSM
-# BUILD_DEB=0 (defaut) : qosmo et c54x_exe viennent des .deb de la release
-# (verifies en SHA-256). BUILD_DEB=1 : compiles depuis les sources aux commits
-# figes ci-dessous, puis ./make-debs.sh refait les .deb a partir de l'image.
-ARG BUILD_DEB=0
-ARG DEB_URL=https://github.com/bbaranoff/osmo-minioperator/releases/download/debs-2026-10-29
+ARG BUILD_DEB
+ARG DEB_URL
 ARG QOSMO_DEB=qosmo_0.git20261028.cc9c9c02_amd64.deb
 ARG QOSMO_DEB_SHA256=3e59e47712eca1ea368b624ffc40791a92737d35b20d260154f3b0511252db98
 # Commit fige (verifie : LU + voix ROM).

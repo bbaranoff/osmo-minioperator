@@ -215,9 +215,9 @@ export MOBILE_CFG="${MOBILE_CFG:-/root/.osmocom/bb/mobile.cfg}"
 export BANC_VOCODEUR="${BANC_VOCODEUR:-hote}"
 export CALYPSO_VSP="${CALYPSO_VSP:-1}"
 # Reglages DSP du lancement osmo-operator (14-demarrage.sh) : rafale TS0 par
-# trame dans l ordre des FN, livraison DMA, 60000 insn/trame : defaut verifie
+# trame dans l ordre des FN, livraison DMA, 120000 insn/trame : defaut verifie
 # (LU + voix DL/UL). Reglable par INSNS=.
-export IQ="${IQ:-none}" INSNS="${INSNS:-60000}" LOCKSTEP="${LOCKSTEP:-1}"
+export IQ="${IQ:-none}" INSNS="${INSNS:-120000}" LOCKSTEP="${LOCKSTEP:-1}"
 export CALYPSO_RHEA_DMA_XFER="${CALYPSO_RHEA_DMA_XFER:-1}"
 export CALYPSO_BSP_STREAM="${CALYPSO_BSP_STREAM:-1}"
 # Vocodeur et parole montante ROM, comme osmo-operator (14-demarrage.sh) : sans

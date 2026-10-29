@@ -24,7 +24,7 @@ injecté dans le micro du mobile revient par l'écho du 600. Vérifié par `./ve
 | Port voix | SP0 modélisé (`CALYPSO_VSP=1`) ↔ `pont/vsp_audio.py` ↔ PulseAudio (`gsm_audio` / `gsm_mic`) |
 | Données | `tch-data io-handler unix-sock`, format `ti` |
 | Radio | BTS `osmo-bts-trx` ↔ `pont/pont_dsp.py` (TRXC/TRXD 5700-5702) ↔ BSP du DSP (UDP 6702) |
-| Rythme DSP | 60000 instructions/trame, LOCKSTEP=1, `CALYPSO_BSP_STREAM=1`, `CALYPSO_RHEA_DMA_XFER=1` |
+| Rythme DSP | 120000 instructions/trame, LOCKSTEP=1, `CALYPSO_BSP_STREAM=1`, `CALYPSO_RHEA_DMA_XFER=1` |
 
 Les drapeaux de l'émulateur C54x du profil « vocodeur ROM » d'osmo-operator
 (`CALYPSO_MAC`, `CALYPSO_C54X_BCD_*`, `CALYPSO_C54X_OVM_LOGIQUE`, `CALYPSO_NORM_TC=0`…)
@@ -149,7 +149,7 @@ hangup 1
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `INSNS` | 60000 | instructions DSP par trame ; valeur vérifiée |
+| `INSNS` | 120000 | instructions DSP par trame ; valeur vérifiée |
 | `PONT_NOMTXPOWER` | 23 | puissance nominale renvoyée à osmo-bts-trx |
 | `PULSE_SERVER` | `unix:/run/pulse/native` | serveur PulseAudio utilisé par le pont VSP |
 

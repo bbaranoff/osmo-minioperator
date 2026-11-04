@@ -1,5 +1,7 @@
 # osmo-minioperator
 
+> **40C3 :** ce dépôt est la démo du talk *Emulating the Baseband* (40ᵉ Chaos Communication Congress, Hambourg). Lien Fahrplan à venir.
+
 Copyright (C) 2026 Bastien Baranoff — licence GNU GPL v3 ou ultérieure (voir [Licence](#licence-et-attributions)).
 
 > **Plateforme : Linux x86_64 uniquement** (testé sur Ubuntu 24.04). Il faut Docker,

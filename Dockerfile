@@ -102,7 +102,7 @@ ARG C54X_EXE_REF=0097a4be162733e0edf6cc2eab2db5110a12bfa4
 # Dump ROM DSP 3606 (publie par FreeCalypso) + son SHA-256. ROM_MIRRORS : URL
 # completes du dump, essayees dans l'ordre ; la premiere au bon SHA-256
 # gagne. Un seul telechargement : fetch-rom.sh relit ensuite la copie locale (file://).
-ARG ROM_MIRRORS="https://www.freecalypso.org/pub/GSM/Calypso/dsp-rom-3606-dump.txt"
+ARG ROM_MIRRORS="https://gist.githubusercontent.com/bbaranoff/ba2746dd4fe6117475d95f791bf7df35/raw/16a4e486776315ecdf6c8972c58e877fa19785c5/calypso_dsp.txt https://raw.githubusercontent.com/bbaranoff/fc-magnetite/main/freecalypso-env/dsp-rom-3606-dump.txt https://www.freecalypso.org/pub/GSM/Calypso/dsp-rom-3606-dump.txt"
 ARG CALYPSO_DSP_SHA256=e35798f50fd0a29aa61cd53e417c010d7f172582c7bc055211daab8af1e05470
 ARG C54X_DEB=c54x-exe_0.git20261028.0097a4b_amd64.deb
 ARG C54X_DEB_SHA256=735c86c175210fca760a97879707abdb079be260c73df1835334b75b1c6ea81d

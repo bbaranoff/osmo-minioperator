@@ -186,6 +186,7 @@ hangup 1
 | `start.sh` | entrypoint du conteneur |
 | `docker-run.sh` | `docker run` avec l'audio de l'hôte, sans `--privileged` |
 | `verif.sh` | verdict automatique : LU + appels au 600, voix DL et UL |
+| `verif_rom.sh` | preuve que la ROM DSP des miroirs est le dump FreeCalypso (SHA-256, SHA-512, `cmp`) |
 | `make-debs.sh` | `.deb` de qosmo et c54x_exe tirés d'une image `BUILD_DEB=1` |
 | `configs/` | configs Osmocom et mobile figées ; `configs/asterisk/` |
 | `pont/` | pont TRX ↔ DSP et pont audio VSP (repris d'osmo-operator) |
@@ -213,7 +214,14 @@ La ROM DSP est tirée de FreeCalypso
 `dsp-rom-3606-dump.txt` est vérifié en SHA-256 (`e35798f5…`) au `curl` comme au `fetch-rom.sh`.
 `ROM_MIRRORS` (`--build-arg` pour Docker, variable pour `install.sh`) donne une liste d'URL
 du dump essayées dans l'ordre : la première dont le SHA-256 est le bon est retenue, la source
-importe donc peu (`aucun miroir valide` si aucune ne convient).
+importe donc peu (`aucun miroir valide` si aucune ne convient). Par défaut : le gist
+épinglé sur sa révision, fc-magnetite, puis freecalypso.org.
+
+**Preuve que c'est le même fichier que chez FreeCalypso** : `./verif_rom.sh` retélécharge
+l'original sur freecalypso.org et chaque miroir, affiche SHA-256 et SHA-512, compare chaque
+copie octet par octet (`cmp`) et rend un verdict (`--local FICHIER` pour une copie à soi,
+code 0 si tout est identique). Le même script est dans
+[c54x_exe](https://github.com/bbaranoff/c54x_exe) et [osmo-operator](https://github.com/bbaranoff/osmo-operator).
 
 Les paquets viennent du dépôt `osmocom:latest`, qui évolue et **ne garde qu'une version
 par paquet** : on ne peut donc pas les pinner (`osmo-msc=1.16.0` échouerait dès la release
@@ -313,7 +321,7 @@ Vous devriez avoir reçu une copie de la GNU General Public License avec ce prog
 (fichier [`LICENSE`](LICENSE)). Sinon, voir <https://www.gnu.org/licenses/>.
 
 La GPLv3 couvre le contenu de ce dépôt : `Dockerfile`, scripts (`install.sh`,
-`run-dsp.sh`, `start.sh`, `docker-run.sh`), `configs/` et `pont/`.
+`run-dsp.sh`, `start.sh`, `docker-run.sh`, `verif.sh`, `verif_rom.sh`), `configs/` et `pont/`.
 
 ### Attributions
 

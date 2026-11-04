@@ -99,8 +99,10 @@ RUN GIT_TERMINAL_PROMPT=0 git clone https://github.com/bbaranoff/firmware /opt/G
 # c54x_exe : CFLAGS sans -march=native (SIGILL sur un autre CPU que l'hote de build).
 # Commit fige (verifie : LU + voix ROM).
 ARG C54X_EXE_REF=0097a4be162733e0edf6cc2eab2db5110a12bfa4
-# Dump ROM DSP 3606 publie par FreeCalypso + son SHA-256.
-ARG FREECALYPSO_URL=https://www.freecalypso.org/pub/GSM/Calypso
+# Dump ROM DSP 3606 (publie par FreeCalypso) + son SHA-256. ROM_MIRRORS : URL
+# completes du dump, essayees dans l'ordre ; la premiere au bon SHA-256
+# gagne. Un seul telechargement : fetch-rom.sh relit ensuite la copie locale (file://).
+ARG ROM_MIRRORS="https://www.freecalypso.org/pub/GSM/Calypso/dsp-rom-3606-dump.txt"
 ARG CALYPSO_DSP_SHA256=e35798f50fd0a29aa61cd53e417c010d7f172582c7bc055211daab8af1e05470
 ARG C54X_DEB=c54x-exe_0.git20261028.0097a4b_amd64.deb
 ARG C54X_DEB_SHA256=735c86c175210fca760a97879707abdb079be260c73df1835334b75b1c6ea81d
@@ -117,9 +119,16 @@ RUN if [ "$BUILD_DEB" = 1 ]; then \
       && rm -rf /var/lib/apt/lists/* "/tmp/$C54X_DEB"; \
     fi \
     && cd /opt/GSM/c54x_exe \
-    && FREECALYPSO_URL="$FREECALYPSO_URL" bash rom/fetch-rom.sh --dest /opt/GSM --dest /opt/GSM/c54x_exe/rom \
-    && curl -fsS --retry 2 -o /opt/GSM/calypso_dsp.txt "$FREECALYPSO_URL/dsp-rom-3606-dump.txt" \
-    && echo "${CALYPSO_DSP_SHA256}  /opt/GSM/calypso_dsp.txt" | sha256sum -c - \
+    && install -d /tmp/rom-src && ok=0 \
+    && for url in $ROM_MIRRORS; do \
+         echo "ROM DSP : essai $url"; \
+         curl -fsSL --retry 2 -o /tmp/rom-src/dsp-rom-3606-dump.txt "$url" \
+         && echo "${CALYPSO_DSP_SHA256}  /tmp/rom-src/dsp-rom-3606-dump.txt" | sha256sum -c - \
+         && { ok=1; break; } || true; \
+       done \
+    && { [ "$ok" = 1 ] || { echo "ROM DSP : aucun miroir valide ($ROM_MIRRORS)" >&2; exit 1; }; } \
+    && FREECALYPSO_URL=file:///tmp/rom-src bash rom/fetch-rom.sh --dest /opt/GSM --dest /opt/GSM/c54x_exe/rom \
+    && mv /tmp/rom-src/dsp-rom-3606-dump.txt /opt/GSM/calypso_dsp.txt && rmdir /tmp/rom-src \
     && cp /opt/GSM/calypso_dsp.txt rom/calypso_dsp.txt
 
 # osmocom-bb : make nofirmware dans src/ (mobile, osmocon, trxcon). Pin eac4eed1

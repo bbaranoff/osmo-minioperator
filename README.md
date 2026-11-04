@@ -211,6 +211,9 @@ Les dépôts compilés au build sont figés par `git checkout` (Dockerfile et `i
 La ROM DSP est tirée de FreeCalypso
 (<https://www.freecalypso.org/pub/GSM/Calypso/dsp-rom-3606-dump.txt>) et son dump
 `dsp-rom-3606-dump.txt` est vérifié en SHA-256 (`e35798f5…`) au `curl` comme au `fetch-rom.sh`.
+`ROM_MIRRORS` (`--build-arg` pour Docker, variable pour `install.sh`) donne une liste d'URL
+du dump essayées dans l'ordre : la première dont le SHA-256 est le bon est retenue, la source
+importe donc peu (`aucun miroir valide` si aucune ne convient).
 
 Les paquets viennent du dépôt `osmocom:latest`, qui évolue et **ne garde qu'une version
 par paquet** : on ne peut donc pas les pinner (`osmo-msc=1.16.0` échouerait dès la release

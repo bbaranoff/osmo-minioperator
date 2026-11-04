@@ -24,8 +24,9 @@ OSMOCOM_BB_REF=${OSMOCOM_BB_REF:-eac4eed1}
 QOSMO_REF=${QOSMO_REF:-cc9c9c02ed0cab3b4eef7917062923df94e3809e}
 C54X_EXE_REF=${C54X_EXE_REF:-0097a4be162733e0edf6cc2eab2db5110a12bfa4}
 FIRMWARE_REF=${FIRMWARE_REF:-cb97f3f6a071726b52b6c7fd88f096b0d5bbfb48}
-# Dump ROM DSP publie par FreeCalypso (hote freecalypso.org).
-FREECALYPSO_URL=${FREECALYPSO_URL:-https://www.freecalypso.org/pub/GSM/Calypso}
+# Dump ROM DSP 3606 (publie par FreeCalypso) : URL essayees dans l'ordre
+# (URL completes du dump) ; la premiere au bon SHA-256 gagne.
+ROM_MIRRORS=${ROM_MIRRORS:-https://www.freecalypso.org/pub/GSM/Calypso/dsp-rom-3606-dump.txt}
 # SHA-256 du dump ROM DSP 3606 verifie (dsp-rom-3606-dump.txt -> calypso_dsp.txt).
 CALYPSO_DSP_SHA256=${CALYPSO_DSP_SHA256:-e35798f50fd0a29aa61cd53e417c010d7f172582c7bc055211daab8af1e05470}
 export DEBIAN_FRONTEND=noninteractive
@@ -118,10 +119,16 @@ clone_fige https://github.com/bbaranoff/c54x_exe "$ROOT/c54x_exe" "$C54X_EXE_REF
 cd "$ROOT/c54x_exe"
 make QOSMO="$ROOT/qosmo" \
     CFLAGS="-O3 -g -Wall -Werror=format -Werror=format-extra-args -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-sign-compare"
-FREECALYPSO_URL="$FREECALYPSO_URL" bash rom/fetch-rom.sh --dest "$ROOT" --dest "$ROOT/c54x_exe/rom"
-curl -fsS --retry 2 -o "$ROOT/calypso_dsp.txt" "$FREECALYPSO_URL/dsp-rom-3606-dump.txt"
-echo "$CALYPSO_DSP_SHA256  $ROOT/calypso_dsp.txt" | sha256sum -c - \
-    || { echo "calypso_dsp.txt : SHA-256 inattendu (voir CALYPSO_DSP_SHA256) - abandon" >&2; exit 1; }
+ROM_SRC="$(mktemp -d)"; ok=0
+for url in $ROM_MIRRORS; do
+    echo "ROM DSP : essai $url"
+    curl -fsSL --retry 2 -o "$ROM_SRC/dsp-rom-3606-dump.txt" "$url" \
+        && echo "$CALYPSO_DSP_SHA256  $ROM_SRC/dsp-rom-3606-dump.txt" | sha256sum -c - \
+        && { ok=1; break; } || true
+done
+[ "$ok" = 1 ] || { echo "ROM DSP : aucun miroir au SHA-256 attendu ($ROM_MIRRORS) - abandon" >&2; exit 1; }
+FREECALYPSO_URL="file://$ROM_SRC" bash rom/fetch-rom.sh --dest "$ROOT" --dest "$ROOT/c54x_exe/rom"
+mv "$ROM_SRC/dsp-rom-3606-dump.txt" "$ROOT/calypso_dsp.txt"; rmdir "$ROM_SRC"
 cp "$ROOT/calypso_dsp.txt" rom/calypso_dsp.txt
 
 # ── 6. osmocom-bb : layer 2/3 (mobile), osmocon, trxcon ──────────────────────

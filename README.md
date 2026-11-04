@@ -2,6 +2,11 @@
 
 Copyright (C) 2026 Bastien Baranoff — licence GNU GPL v3 ou ultérieure (voir [Licence](#licence-et-attributions)).
 
+> **Plateforme : Linux x86_64 uniquement** (testé sur Ubuntu 24.04). Il faut Docker,
+> `/dev/net/tun` et, pour entendre l'appel, PulseAudio ou PipeWire (`pipewire-pulse`).
+> Les `.deb` sont en amd64 : **macOS (y compris Apple Silicon) et Windows ne sont pas pris en charge**,
+> pas même via Docker Desktop.
+
 Un opérateur GSM complet sur une seule machine, réduit à l'essentiel d'[osmo-operator](https://github.com/bbaranoff/osmo-operator) :
 la pile réseau Osmocom (paquets `.deb` officiels), Asterisk, et un téléphone Calypso
 émulé dont le **DSP TI C54x tourne hors QEMU** (`c54x_exe`, avec la vraie ROM).
@@ -80,6 +85,12 @@ sudo IMG=osmo-minioperator:src ./make-debs.sh                          # -> ./de
 
 `docker-run.sh` monte le socket PulseAudio de l'hôte : **sans lui on n'entend rien**
 (la voix circule quand même dans un PulseAudio local, et `verif.sh` la mesure).
+Il prend dans l'ordre `PULSE_SOCK` s'il est donné, le PulseAudio système (`/run/pulse/native`),
+puis le socket de session `/run/user/<uid>/pulse/native`, c'est-à-dire **PipeWire** sur la
+plupart des laptops récents (`pipewire-pulse` doit tourner). Le socket retenu est affiché
+au lancement : si le message « aucun socket PulseAudio » apparaît, `verif.sh` passera mais
+l'écho restera inaudible. Pour forcer un socket : `sudo PULSE_SOCK=/run/user/1000/pulse/native ./docker-run.sh`.
+
 L'équivalent à la main :
 
 ```bash
@@ -201,7 +212,11 @@ La ROM DSP est tirée de FreeCalypso
 (<https://www.freecalypso.org/pub/GSM/Calypso/dsp-rom-3606-dump.txt>) et son dump
 `dsp-rom-3606-dump.txt` est vérifié en SHA-256 (`e35798f5…`) au `curl` comme au `fetch-rom.sh`.
 
-Les paquets viennent du dépôt `osmocom:latest`, qui évolue ; versions de la vérification :
+Les paquets viennent du dépôt `osmocom:latest`, qui évolue et **ne garde qu'une version
+par paquet** : on ne peut donc pas les pinner (`osmo-msc=1.16.0` échouerait dès la release
+suivante). Le build compare l'image à `configs/versions-verifiees.txt`, affiche un
+`ATTENTION` en cas d'écart (liste dans `/opt/GSM/osmo-minioperator/versions-image.txt`)
+et, avec `--build-arg STRICT_VERSIONS=1`, échoue. Versions de la vérification :
 osmo-stp 2.3.0, osmo-hlr 1.9.4, osmo-mgw 1.16.1, osmo-msc 1.16.0, osmo-bsc 1.15.0,
 osmo-bts-trx 1.12.0, osmo-pcu 1.5.3, osmo-sip-connector 1.7.2, libosmocore 1.14.2,
 Asterisk 20.6.0 (Ubuntu 24.04).

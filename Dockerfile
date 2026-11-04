@@ -141,6 +141,17 @@ RUN chmod +x /opt/GSM/osmo-minioperator/run-dsp.sh /opt/GSM/osmo-minioperator/st
     && cp /opt/GSM/osmo-minioperator/configs/*.cfg /etc/osmocom/ \
     && cp /opt/GSM/osmo-minioperator/configs/mobile.cfg /root/.osmocom/bb/mobile.cfg
 
+# osmocom:latest ne garde qu'une version par paquet : pinner (pkg=ver) casserait le
+# build a la release suivante. On compare donc a la liste verifiee et on le dit.
+ARG STRICT_VERSIONS=0
+RUN grep -v '^#' /opt/GSM/osmo-minioperator/configs/versions-verifiees.txt | sort > /tmp/v-ref \
+    && dpkg-query -W -f '${Package} ${Version}\n' $(cut -d' ' -f1 /tmp/v-ref) | sort > /tmp/v-img \
+    && cp /tmp/v-img /opt/GSM/osmo-minioperator/versions-image.txt \
+    && if diff -u /tmp/v-ref /tmp/v-img; then echo "versions : identiques a la verification"; \
+       else echo "ATTENTION : versions differentes de la verification du 2026-10-29 (ci-dessus)"; \
+            [ "$STRICT_VERSIONS" != 1 ]; fi \
+    && rm -f /tmp/v-ref /tmp/v-img
+
 # Audio : le socket PulseAudio de l'hote est monte ici par docker-run.sh.
 ENV PULSE_SERVER=unix:/run/pulse/native
 

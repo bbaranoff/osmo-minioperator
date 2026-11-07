@@ -103,7 +103,48 @@ sudo docker run -it --cap-add NET_ADMIN --cap-add SYS_NICE --device /dev/net/tun
 Pas besoin de `--privileged` : `NET_ADMIN` et `/dev/net/tun` servent à osmo-ggsn (TUN),
 `SYS_NICE` à la priorité temps réel du DSP.
 
-L'entrée dans le conteneur donne un shell ; rien ne démarre tout seul.
+L'entrée dans le conteneur lance toute la pile et ouvre les trois consoles de la démo
+(voir ci-dessous). Pour l'ancien comportement (un shell, rien ne démarre) :
+`sudo ./docker-run.sh bash`.
+
+### Les trois consoles (« Three consoles, one phone call »)
+
+`sudo ./docker-run.sh` ouvre une session tmux `demo` (`consoles.sh`), sans rien à taper :
+
+| Fenêtre / panneau | Console | Se connecte quand |
+|---|---|---|
+| `consoles` 1 | shell Harvard du DSP C54x (`c54x_exe/harvard.sh repl`) : API RAM, NDB, `d@` | `/tmp/calypso_dsp.sock` et `/dev/shm/calypso_api_ram` existent |
+| `consoles` 2 | `gdb-multiarch` sur `layer1.highram.elf`, gdbstub QEMU `127.0.0.1:1234` | port 1234 en écoute **et** LU obtenu |
+| `consoles` 3 | VTY du mobile, `telnet 127.0.0.1 4247`, `enable` déjà tapé | port 4247 en écoute **et** LU obtenu |
+| `pile` | sortie de `./run-dsp.sh`, puis un shell (`./verif.sh` ici) | — |
+
+Les attentes ne se connectent jamais au port : une connexion au gdbstub suffit à arrêter
+l'ARM. gdb et le VTY attendent en plus le LOCATION UPDATING ACCEPT (300 s maximum), pour ne pas
+arrêter l'ARM pendant la recherche de cellule. Un panneau quitté (`q`, `quit`, `Ctrl-]`)
+se reconnecte quand on appuie sur Entrée. Si on se détache de tmux (`C-b d`), on retombe
+sur un shell et la pile continue de tourner.
+
+```
+VTY  : call 1 600                → % Call is answered          (hangup 1)
+DSP  : d@ d_task_d               → W0 [0800]=000d d_task_d  tache 13 = TCHT
+       d@ W0 | d@ R0 | d@ noms d_task | aide
+gdb  : stop  puis  bt  puis  go  (la cible tourne en « continue & » ; stop = interrupt)
+       list l1a_l23_handler      → layer1/l23_api.c:643
+```
+
+- Les sources de l'ELF sont celles du dépôt `firmware` (`/opt/GSM/firmware`, même commit que
+  l'ELF). Comme l'ELF a été compilé dans `/opt/GSM/osmocom-bb/src/target/firmware`, le panneau
+  pose un `set substitute-path` ; le `Dockerfile` vérifie au build que `list l1a_l23_handler`
+  affiche bien le source.
+- Le stub QEMU n'accepte qu'un client gdb : tant que le panneau 2 est attaché, la console
+  `telnet 0 44444` (`gdb-telnet.py`, lancée par `run.sh`) et la commande `gdb` de
+  `harvard.sh` ne peuvent pas s'y connecter. Pour les utiliser, quitter d'abord le gdb du panneau.
+- `stop` met en pause l'ARM, donc aussi le DSP (LOCKSTEP) : pendant un appel, faire `go` vite.
+- Dans l'image `.deb`, le côté P de `harvard.sh` (`pas`, `asm`, `dis`) n'est pas disponible
+  (`isa_test` et binutils tic54x ne sont pas installés : avertissements en rouge au
+  démarrage). Le côté API RAM (`d@`, `d@!`) fonctionne.
+- Une pile complète par conteneur : ports, `/dev/shm` et `/tmp` sont propres au conteneur.
+  Le shell DSP accepte les écritures (`d@!`), donc chaque utilisateur a besoin de son propre conteneur.
 
 ## Natif (Ubuntu 24.04)
 
@@ -186,6 +227,7 @@ hangup 1
 | `install.sh` | même chose en natif |
 | `run-dsp.sh` | lancement de l'opérateur en mode DSP |
 | `start.sh` | entrypoint du conteneur |
+| `consoles.sh` | commande par défaut du conteneur : session tmux, trois consoles (DSP, gdb ARM, VTY) |
 | `docker-run.sh` | `docker run` avec l'audio de l'hôte, sans `--privileged` |
 | `verif.sh` | verdict automatique : LU + appels au 600, voix DL et UL |
 | `verif_rom.sh` | preuve que la ROM DSP des miroirs est le dump FreeCalypso (SHA-256, SHA-512, `cmp`) |
@@ -323,7 +365,7 @@ Vous devriez avoir reçu une copie de la GNU General Public License avec ce prog
 (fichier [`LICENSE`](LICENSE)). Sinon, voir <https://www.gnu.org/licenses/>.
 
 La GPLv3 couvre le contenu de ce dépôt : `Dockerfile`, scripts (`install.sh`,
-`run-dsp.sh`, `start.sh`, `docker-run.sh`, `verif.sh`, `verif_rom.sh`), `configs/` et `pont/`.
+`run-dsp.sh`, `start.sh`, `consoles.sh`, `docker-run.sh`, `verif.sh`, `verif_rom.sh`), `configs/` et `pont/`.
 
 ### Attributions
 

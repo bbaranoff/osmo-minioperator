@@ -85,6 +85,7 @@ ARG DEB_URL
 RUN apt-get update && apt-get install -y --no-install-recommends \
       osmo-stp osmo-hlr osmo-mgw osmo-msc osmo-bsc osmo-bts osmo-pcu osmo-trx \
       osmo-sgsn osmo-ggsn osmo-sip-connector telnet \
+      tmux gdb-multiarch \
       asterisk asterisk-core-sounds-en pulseaudio pulseaudio-utils \
       libosmo-csn1-dev libosmo-gprs-rlcmac-dev libosmo-gprs-llc-dev \
       libosmo-gprs-gmm-dev libosmo-gprs-sm-dev libosmo-gprs-sndcp-dev \
@@ -144,8 +145,9 @@ RUN git clone https://gitea.osmocom.org/phone-side/osmocom-bb /opt/GSM/osmocom-b
 COPY configs/ /opt/GSM/osmo-minioperator/configs/
 COPY configs/asterisk/ /etc/asterisk/
 COPY pont/ /opt/GSM/osmo-minioperator/pont/
-COPY run-dsp.sh start.sh verif.sh /opt/GSM/osmo-minioperator/
+COPY run-dsp.sh start.sh verif.sh consoles.sh /opt/GSM/osmo-minioperator/
 RUN chmod +x /opt/GSM/osmo-minioperator/run-dsp.sh /opt/GSM/osmo-minioperator/start.sh /opt/GSM/osmo-minioperator/verif.sh \
+             /opt/GSM/osmo-minioperator/consoles.sh \
     && install -d /etc/osmocom /var/lib/osmocom /var/log/osmocom /root/.osmocom/bb \
     && cp /opt/GSM/osmo-minioperator/configs/*.cfg /etc/osmocom/ \
     && cp /opt/GSM/osmo-minioperator/configs/mobile.cfg /root/.osmocom/bb/mobile.cfg
@@ -161,9 +163,21 @@ RUN grep -v '^#' /opt/GSM/osmo-minioperator/configs/versions-verifiees.txt | sor
             [ "$STRICT_VERSIONS" != 1 ]; fi \
     && rm -f /tmp/v-ref /tmp/v-img
 
+# Console gdb (consoles.sh) : l'ELF layer1 doit avoir ses symboles et ses sources.
+# DW_AT_comp_dir = /opt/GSM/osmocom-bb/src/target/firmware ; les sources de l'ELF
+# sont celles du depot firmware (meme commit) : substitute-path. Echec du build sinon.
+RUN gdb-multiarch -q -nx -batch \
+        -iex 'set substitute-path /opt/GSM/osmocom-bb/src/target/firmware /opt/GSM/firmware' \
+        -ex 'list l1a_l23_handler' -ex 'info source' \
+        /opt/GSM/firmware/board/compal_e88/layer1.highram.elf | tee /tmp/gdb-list.txt \
+    && grep -q 'void l1a_l23_handler(void)' /tmp/gdb-list.txt \
+    && grep -q 'Located in /opt/GSM/firmware/layer1/l23_api.c' /tmp/gdb-list.txt \
+    && rm -f /tmp/gdb-list.txt
+
 # Audio : le socket PulseAudio de l'hote est monte ici par docker-run.sh.
 ENV PULSE_SERVER=unix:/run/pulse/native
 
 WORKDIR /opt/GSM/osmo-minioperator
 ENTRYPOINT ["/opt/GSM/osmo-minioperator/start.sh"]
-CMD ["/bin/bash"]
+# Defaut : les trois consoles de la demo (tmux). « docker run ... bash » : un shell, comme avant.
+CMD ["/opt/GSM/osmo-minioperator/consoles.sh"]

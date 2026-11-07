@@ -143,6 +143,9 @@ gdb  : stop  puis  bt  puis  go  (la cible tourne en « continue & » ; stop = i
 - Dans l'image `.deb`, le côté P de `harvard.sh` (`pas`, `asm`, `dis`) n'est pas disponible
   (`isa_test` et binutils tic54x ne sont pas installés : avertissements en rouge au
   démarrage). Le côté API RAM (`d@`, `d@!`) fonctionne.
+- Accès navigateur (optionnel, désactivé par défaut) : `sudo TTYD=1 ./docker-run.sh`, puis
+  <http://127.0.0.1:7681/>. Le serveur ttyd sert la même session tmux, accepte un seul client et n'a pas
+  d'authentification : le port n'est publié que sur `127.0.0.1` (`TTYD_PORT` pour le changer).
 - Une pile complète par conteneur : ports, `/dev/shm` et `/tmp` sont propres au conteneur.
   Le shell DSP accepte les écritures (`d@!`), donc chaque utilisateur a besoin de son propre conteneur.
 

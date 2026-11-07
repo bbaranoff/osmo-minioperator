@@ -85,7 +85,7 @@ ARG DEB_URL
 RUN apt-get update && apt-get install -y --no-install-recommends \
       osmo-stp osmo-hlr osmo-mgw osmo-msc osmo-bsc osmo-bts osmo-pcu osmo-trx \
       osmo-sgsn osmo-ggsn osmo-sip-connector telnet \
-      tmux gdb-multiarch \
+      tmux gdb-multiarch ttyd \
       asterisk asterisk-core-sounds-en pulseaudio pulseaudio-utils \
       libosmo-csn1-dev libosmo-gprs-rlcmac-dev libosmo-gprs-llc-dev \
       libosmo-gprs-gmm-dev libosmo-gprs-sm-dev libosmo-gprs-sndcp-dev \

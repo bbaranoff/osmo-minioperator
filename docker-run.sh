@@ -31,4 +31,12 @@ home="$(getent passwd "${SUDO_USER:-$(id -un)}" | cut -d: -f6)"
 [ -r "$home/.config/pulse/cookie" ] && args+=(-v "$home/.config/pulse/cookie:/root/.config/pulse/cookie:ro")
 [ -d /dev/snd ] && args+=(--device /dev/snd)
 
+# TTYD=1 : les consoles aussi dans le navigateur (ttyd, sans authentification : port
+# publie sur 127.0.0.1 seulement). TTYD_PORT (7681) change le port, des deux cotes.
+if [ "${TTYD:-0}" = 1 ]; then
+    p="${TTYD_PORT:-7681}"
+    args+=(-e TTYD=1 -e "TTYD_PORT=$p" -p "127.0.0.1:$p:$p")
+    echo "docker-run.sh : consoles aussi sur http://127.0.0.1:$p/" >&2
+fi
+
 exec docker run "${args[@]}" "$IMG" "$@"

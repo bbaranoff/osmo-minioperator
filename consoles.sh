@@ -15,7 +15,8 @@
 #
 #   ./consoles.sh              cree la session (si besoin) et s'y attache
 #   ./consoles.sh --pane X     contenu d'un panneau (dsp | gdb | vty), usage interne
-# Variables : CONSOLES_SESSION (demo), TTYD=1 (acces navigateur, voir plus bas).
+# Variables : CONSOLES_SESSION (demo), TTYD=1 (acces navigateur : ttyd devant la session,
+#             port TTYD_PORT=7681, un seul client), desactive par defaut.
 # ─────────────────────────────────────────────────────────────────────────────
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -142,6 +143,18 @@ if ! tmux has-session -t "$SESSION" 2>/dev/null; then
     tmux split-window -t "$SESSION:consoles.1" -v -c "$HERE" "\"$HERE/consoles.sh\" --pane vty"
     tmux select-pane -t "$SESSION:consoles.2"
     tmux select-window -t "$SESSION:consoles"
+fi
+
+# Acces navigateur (optionnel) : ttyd sert la meme session tmux. -W : ecriture permise
+# (ttyd >= 1.7 est en lecture seule sinon) ; -m 1 : un seul client, une instance par
+# utilisateur. Pas d'authentification : docker-run.sh ne publie le port que sur 127.0.0.1.
+if [ "${TTYD:-0}" = 1 ]; then
+    if command -v ttyd >/dev/null; then
+        ttyd -W -m 1 -p "${TTYD_PORT:-7681}" tmux -u attach -t "$SESSION" >/tmp/ttyd.log 2>&1 &
+        gras "ttyd : http://127.0.0.1:${TTYD_PORT:-7681}/ (journal /tmp/ttyd.log)"
+    else
+        gras "TTYD=1 mais ttyd absent de l'image"
+    fi
 fi
 
 if [ -t 0 ] && [ -t 1 ]; then

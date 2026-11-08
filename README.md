@@ -310,8 +310,7 @@ Asterisk 20.6.0 (Ubuntu 24.04).
 Campagne du **2026-10-29**, hôte Ubuntu 24.04 avec PulseAudio système
 (`/run/pulse/native`).
 
-Pas à pas rejouable : `tests.ipynb` (Jupyter), ou en ligne de commande enregistré avec
-asciinema : `./tests-cli.sh` (→ `tests-out/campagne.cast`, `asciinema play` pour le revoir).
+Vérification en une commande, dans le conteneur : `INSNS=120000 ./run-dsp.sh && ./verif.sh`.
 
 ### 1. Construction de zéro
 

@@ -163,7 +163,7 @@ RUN git clone https://gitea.osmocom.org/phone-side/osmocom-bb /opt/GSM/osmocom-b
 COPY configs/ /opt/GSM/osmo-minioperator/configs/
 COPY configs/asterisk/ /etc/asterisk/
 COPY pont/ /opt/GSM/osmo-minioperator/pont/
-COPY run-dsp.sh start.sh verif.sh consoles.sh /opt/GSM/osmo-minioperator/
+COPY run-dsp.sh start.sh verif.sh consoles.sh echotest.py echo-tmux.sh /opt/GSM/osmo-minioperator/
 RUN chmod +x /opt/GSM/osmo-minioperator/run-dsp.sh /opt/GSM/osmo-minioperator/start.sh /opt/GSM/osmo-minioperator/verif.sh \
              /opt/GSM/osmo-minioperator/consoles.sh \
     && install -d /etc/osmocom /var/lib/osmocom /var/log/osmocom /root/.osmocom/bb \

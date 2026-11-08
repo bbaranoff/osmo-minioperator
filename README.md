@@ -179,6 +179,23 @@ osmo-sgsn, osmo-ggsn et osmo-pcu sont lancés pour que la cellule soit la même 
 d'osmo-operator (indicateur GPRS dans les System Information). **Le GPRS n'est pas
 démontré** dans ce dépôt : seuls l'attachement GSM et les appels vocaux le sont.
 
+
+### Echo test « hello 40c3 » (pas lancé par défaut)
+
+La pile lancée et l'audio de l'hôte branché (`./docker-run.sh`), dans le conteneur :
+
+```bash
+./echo-tmux.sh              # ou ./echo-tmux.sh --duree 25 (arrêt seul 25 s après le début de l'écho)
+```
+
+Session tmux `echo` : à gauche `echotest.py` appelle le 600 ; à l'entrée d'Asterisk dans `Echo()`
+(après son annonce de 22 s) il affiche `>>> say: hello 40c3`, puis les indicateurs SPEAK (votre micro)
+et ECHO (le retour), et le délai aller-retour. À droite, les états d'appel du téléphone et l'horloge du
+pont vers la BTS. Il enregistre les pistes GSM, seulement pendant l'appel, dans `/root/echo` :
+`echo.cast` (le terminal, asciinema v2), `dl.wav` (descendant, sortie du vocodeur de la ROM),
+`ul.wav` (montant, reçu par Asterisk), `echo.wav` (les deux). Le micro brut n'est jamais enregistré.
+`python3 echotest.py --help` pour les options ; sans tmux : `python3 echotest.py`.
+
 ### Verdict automatique
 
 ```bash
@@ -234,6 +251,7 @@ hangup 1
 | `run-dsp.sh` | lancement de l'opérateur en mode DSP |
 | `start.sh` | entrypoint du conteneur |
 | `consoles.sh` | commande par défaut du conteneur : session tmux, trois consoles (DSP, gdb ARM, VTY) |
+| `echo-tmux.sh`, `echotest.py` | echo test « hello 40c3 » (session tmux `echo`), pas lancé par défaut |
 | `docker-run.sh` | `docker run` avec l'audio de l'hôte, sans `--privileged` |
 | `verif.sh` | verdict automatique : LU + appels au 600, voix DL et UL |
 | `verif_rom.sh` | preuve que la ROM DSP des miroirs est le dump FreeCalypso (SHA-256, SHA-512, `cmp`) |

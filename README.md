@@ -267,8 +267,9 @@ ci-dessous, lancée comme `docker-run.sh` (dont `SYS_PTRACE`) : LU ACCEPT, 2 app
 deux sens (téléphone → 100101 et VTY du MSC → téléphone, rangés dans `~/.osmocom/bb/sms.txt`),
 `harvard.sh stop` / `go` avec registres et désassemblage de la ROM à PC.
 Les `.deb` de la release `debs-2026-11-08-en` sont tirés de cette image (`./make-debs.sh`).
-L'image par défaut, construite depuis ces `.deb` (`sudo docker build -t osmo-minioperator .`), est à revérifier
-après publication de la release (`./run-dsp.sh && ./verif.sh` lancée par `sudo ./docker-run.sh`).
+L'image par défaut, construite depuis ces `.deb` (clone neuf de 4118b0e, `docker build --no-cache`), passe aussi
+`./run-dsp.sh && ./verif.sh` (2026-11-08, conteneur sans audio de l'hôte, capacités de `docker-run.sh`) : LU, 2 appels
+sur 2 vers le 600, voix descendante (RMS max 4652 / 4768) et montante (1 kHz renvoyé, part 1.00).
 Vérification précédente : commit [`33cc0f2`](https://github.com/bbaranoff/osmo-minioperator/commit/33cc0f2), 2026-10-29
 (détail : [Tests](#tests)). `install.sh` (natif) n'est pas couvert.
 

@@ -200,5 +200,5 @@ ENV PULSE_SERVER=unix:/run/pulse/native
 
 WORKDIR /opt/GSM/osmo-minioperator
 ENTRYPOINT ["/opt/GSM/osmo-minioperator/start.sh"]
-# Defaut : les trois consoles de la demo (tmux). « docker run ... bash » : un shell, comme avant.
-CMD ["/opt/GSM/osmo-minioperator/consoles.sh"]
+# Defaut : un shell, rien ne demarre (pas de tmux). Les consoles tmux : ./consoles.sh ; l'echo test : ./echo-tmux.sh.
+CMD ["/bin/bash"]

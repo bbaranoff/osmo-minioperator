@@ -103,13 +103,13 @@ sudo docker run -it --cap-add NET_ADMIN --cap-add SYS_NICE --device /dev/net/tun
 Pas besoin de `--privileged` : `NET_ADMIN` et `/dev/net/tun` servent à osmo-ggsn (TUN),
 `SYS_NICE` à la priorité temps réel du DSP.
 
-L'entrée dans le conteneur lance toute la pile et ouvre les trois consoles de la démo
-(voir ci-dessous). Pour l'ancien comportement (un shell, rien ne démarre) :
-`sudo ./docker-run.sh bash`.
+L'entrée dans le conteneur ouvre un shell, sans tmux et sans rien démarrer : on lance la pile
+avec `INSNS=120000 ./run-dsp.sh`. Les trois consoles de la démo (tmux, voir ci-dessous) :
+`./consoles.sh`, ou directement `sudo ./docker-run.sh ./consoles.sh`.
 
 ### Les trois consoles (« Three consoles, one phone call »)
 
-`sudo ./docker-run.sh` ouvre une session tmux `demo` (`consoles.sh`), sans rien à taper :
+`./consoles.sh` (dans le conteneur) ouvre une session tmux `demo`, sans rien d'autre à taper :
 
 | Fenêtre / panneau | Console | Se connecte quand |
 |---|---|---|
@@ -146,7 +146,7 @@ gdb  : stop  puis  bt  puis  go  (la cible tourne en « continue & » ; stop = i
   (`d@`, `d@!`) fonctionne.
 - `harvard.sh stop`, `go` et `dsp` lisent les registres du DSP dans `/proc/<pid>/mem` : il faut
   `--cap-add SYS_PTRACE`, que `docker-run.sh` donne.
-- Accès navigateur (optionnel, désactivé par défaut) : `sudo TTYD=1 ./docker-run.sh`, puis
+- Accès navigateur (optionnel, désactivé par défaut) : `sudo TTYD=1 ./docker-run.sh ./consoles.sh`, puis
   <http://127.0.0.1:7681/>. Le serveur ttyd sert la même session tmux, accepte un seul client et n'a pas
   d'authentification : le port n'est publié que sur `127.0.0.1` (`TTYD_PORT` pour le changer).
 - Une pile complète par conteneur : ports, `/dev/shm` et `/tmp` sont propres au conteneur.
@@ -250,7 +250,7 @@ hangup 1
 | `install.sh` | même chose en natif |
 | `run-dsp.sh` | lancement de l'opérateur en mode DSP |
 | `start.sh` | entrypoint du conteneur |
-| `consoles.sh` | commande par défaut du conteneur : session tmux, trois consoles (DSP, gdb ARM, VTY) |
+| `consoles.sh` | session tmux, trois consoles (DSP, gdb ARM, VTY) ; pas lancée par défaut (le conteneur ouvre un shell) |
 | `echo-tmux.sh`, `echotest.py` | echo test « hello 40c3 » (session tmux `echo`), pas lancé par défaut |
 | `docker-run.sh` | `docker run` avec l'audio de l'hôte, sans `--privileged` |
 | `verif.sh` | verdict automatique : LU + appels au 600, voix DL et UL |

@@ -218,7 +218,7 @@ def ecrire_audio_gsm():
     else:
         p("uplink: no Asterisk channel seen during the call, mixmonitor never started")
     if not os.environ.get("ECHO_LIVE"):
-        p("MP4: on the host, sudo /opt/GSM/demos/osmo/echo-mp4.sh   (or run sudo /opt/GSM/demos/osmo/echo-live.sh next time: MP4 right after Ctrl-C)")
+        p("MP4: on the host, sudo /opt/GSM/demos/osmo/uplink-mp4.sh   (or run sudo /opt/GSM/demos/osmo/uplink-live.sh next time: MP4 right after Ctrl-C)")
 
 
 signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))

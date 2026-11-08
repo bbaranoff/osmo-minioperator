@@ -7,9 +7,10 @@
 set -eu
 IMG="${IMG:-osmo-minioperator}"
 # Pas de --privileged : NET_ADMIN + /dev/net/tun pour osmo-ggsn (TUN),
-# SYS_NICE pour la priorite temps reel du DSP (run.sh, RT_NICE).
+# SYS_NICE pour la priorite temps reel du DSP (run.sh, RT_NICE),
+# SYS_PTRACE pour harvard.sh (stop/go/dsp lisent les registres du DSP dans /proc/<pid>/mem).
 # --init : un vrai PID 1 ramasse les process termines de la pile.
-args=(--rm -it --init --cap-add NET_ADMIN --cap-add SYS_NICE --device /dev/net/tun)
+args=(--rm -it --init --cap-add NET_ADMIN --cap-add SYS_NICE --cap-add SYS_PTRACE --device /dev/net/tun)
 
 # Ordre : PULSE_SOCK (force), PulseAudio systeme, puis socket de session
 # (PipeWire / pipewire-pulse des laptops : /run/user/<uid>/pulse/native).

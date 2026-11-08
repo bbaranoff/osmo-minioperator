@@ -8,7 +8,7 @@
 # figes, puis ./make-debs.sh refait les .deb a partir de l'image.
 # ARG globaux : chaque etage les redeclare sans valeur (un ARG ne traverse pas un FROM).
 ARG BUILD_DEB=0
-ARG DEB_URL=https://github.com/bbaranoff/osmo-minioperator/releases/download/debs-2026-10-29
+ARG DEB_URL=https://github.com/bbaranoff/osmo-minioperator/releases/download/debs-2026-11-08
 
 FROM ubuntu:24.04 AS base
 ARG DEBIAN_FRONTEND=noninteractive
@@ -45,14 +45,32 @@ SHELL ["/bin/bash", "-c"]
 WORKDIR ${ROOT}
 
 
+FROM base AS tic54x
+# objdump et gas tic54x pour harvard.sh (desassemblage de la ROM a PC, assemblage cote P).
+# La cible tic54x a quitte binutils depuis : on prend 2.21.1, verifie en SHA-256 (meme recette
+# que c54x_exe tools/toa23/reproduce.sh ; le vieux C demande -std=gnu89).
+ARG BU_URL=https://ftp.gnu.org/gnu/binutils/binutils-2.21.1.tar.bz2
+ARG BU_SHA256=cdecfa69f02aa7b05fbcdf678e33137151f361313b2f3e48aba925f64eabf654
+RUN apt-get update && apt-get install -y --no-install-recommends bzip2 texinfo && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL --retry 2 -o /tmp/bu.tar.bz2 "$BU_URL" \
+    && echo "$BU_SHA256  /tmp/bu.tar.bz2" | sha256sum -c - \
+    && tar xjf /tmp/bu.tar.bz2 -C /tmp && mkdir /tmp/bt && cd /tmp/bt \
+    && /tmp/binutils-2.21.1/configure --target=tic54x-coff --disable-werror --disable-nls --disable-gdb \
+         --disable-ld --disable-gold --disable-gprof --disable-sim MAKEINFO=true CFLAGS='-O1 -w -std=gnu89' >/dev/null \
+    && make -j"$(nproc)" all-binutils all-gas MAKEINFO=true >/dev/null \
+    && install -D binutils/objdump /out/build-tic54x/binutils/objdump \
+    && install -D gas/as-new /out/build-tic54x/gas/as-new \
+    && /out/build-tic54x/binutils/objdump --version | head -1
+
+
 FROM base AS qemu
 ARG ROOT=/opt/GSM
 ARG BUILD_DEB
 ARG DEB_URL
-ARG QOSMO_DEB=qosmo_0.git20261028.cc9c9c02_amd64.deb
-ARG QOSMO_DEB_SHA256=3e59e47712eca1ea368b624ffc40791a92737d35b20d260154f3b0511252db98
+ARG QOSMO_DEB=qosmo_0.git20261108.388b5757_amd64.deb
+ARG QOSMO_DEB_SHA256=489290ae391cde3f3dbdeea1475330f65cc2cbb434fd4646040378a356edf02c
 # Commit fige (verifie : LU + voix ROM).
-ARG QOSMO_REF=cc9c9c02ed0cab3b4eef7917062923df94e3809e
+ARG QOSMO_REF=388b57575efbf4ecfdce83dd04617c3bc8bdf00a
 RUN if [ "$BUILD_DEB" = 1 ]; then \
       git clone https://github.com/bbaranoff/qosmO /opt/GSM/qosmo \
       && cd /opt/GSM/qosmo \
@@ -99,14 +117,14 @@ RUN GIT_TERMINAL_PROMPT=0 git clone https://github.com/bbaranoff/firmware /opt/G
 
 # c54x_exe : CFLAGS sans -march=native (SIGILL sur un autre CPU que l'hote de build).
 # Commit fige (verifie : LU + voix ROM).
-ARG C54X_EXE_REF=0097a4be162733e0edf6cc2eab2db5110a12bfa4
+ARG C54X_EXE_REF=0a7347d17c629d60457d99670ff4578214d86559
 # Dump ROM DSP 3606 (publie par FreeCalypso) + son SHA-256. ROM_MIRRORS : URL
 # completes du dump, essayees dans l'ordre ; la premiere au bon SHA-256
 # gagne. Un seul telechargement : fetch-rom.sh relit ensuite la copie locale (file://).
 ARG ROM_MIRRORS="https://gist.githubusercontent.com/bbaranoff/ba2746dd4fe6117475d95f791bf7df35/raw/16a4e486776315ecdf6c8972c58e877fa19785c5/calypso_dsp.txt https://raw.githubusercontent.com/bbaranoff/fc-magnetite/main/freecalypso-env/dsp-rom-3606-dump.txt https://www.freecalypso.org/pub/GSM/Calypso/dsp-rom-3606-dump.txt"
 ARG CALYPSO_DSP_SHA256=e35798f50fd0a29aa61cd53e417c010d7f172582c7bc055211daab8af1e05470
-ARG C54X_DEB=c54x-exe_0.git20261028.0097a4b_amd64.deb
-ARG C54X_DEB_SHA256=735c86c175210fca760a97879707abdb079be260c73df1835334b75b1c6ea81d
+ARG C54X_DEB=c54x-exe_0.git20261108.0a7347d_amd64.deb
+ARG C54X_DEB_SHA256=de3f0b19187c8081bcf9508414e17c41af1ec07b88af4a808c0a350d565f5826
 RUN if [ "$BUILD_DEB" = 1 ]; then \
       git clone https://github.com/bbaranoff/c54x_exe /opt/GSM/c54x_exe \
       && cd /opt/GSM/c54x_exe \
@@ -159,7 +177,7 @@ RUN grep -v '^#' /opt/GSM/osmo-minioperator/configs/versions-verifiees.txt | sor
     && dpkg-query -W -f '${Package} ${Version}\n' $(cut -d' ' -f1 /tmp/v-ref) | sort > /tmp/v-img \
     && cp /tmp/v-img /opt/GSM/osmo-minioperator/versions-image.txt \
     && if diff -u /tmp/v-ref /tmp/v-img; then echo "versions : identiques a la verification"; \
-       else echo "ATTENTION : versions differentes de la verification du 2026-10-29 (ci-dessus)"; \
+       else echo "ATTENTION : versions differentes de la verification du 2026-11-08 (ci-dessus)"; \
             [ "$STRICT_VERSIONS" != 1 ]; fi \
     && rm -f /tmp/v-ref /tmp/v-img
 
@@ -173,6 +191,9 @@ RUN gdb-multiarch -q -nx -batch \
     && grep -q 'void l1a_l23_handler(void)' /tmp/gdb-list.txt \
     && grep -q 'Located in /opt/GSM/firmware/layer1/l23_api.c' /tmp/gdb-list.txt \
     && rm -f /tmp/gdb-list.txt
+
+# harvard.sh : objdump et gas tic54x (etage tic54x) aux chemins qu'il attend.
+COPY --from=tic54x /out/build-tic54x/ /opt/GSM/c54x_exe/build-tic54x/
 
 # Audio : le socket PulseAudio de l'hote est monte ici par docker-run.sh.
 ENV PULSE_SERVER=unix:/run/pulse/native

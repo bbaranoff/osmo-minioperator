@@ -74,7 +74,7 @@ sudo ./docker-run.sh
 ```
 
 Par défaut, qosmo et c54x_exe sont installés depuis les `.deb` de la release
-[`debs-2026-10-29`](https://github.com/bbaranoff/osmo-minioperator/releases/tag/debs-2026-10-29)
+[`debs-2026-11-08`](https://github.com/bbaranoff/osmo-minioperator/releases/tag/debs-2026-11-08)
 (SHA-256 vérifiés dans le `Dockerfile`, ~2 min de build). La mask-ROM TI du DSP n'y est pas :
 `rom/fetch-rom.sh` la télécharge et la vérifie au build, dans les deux modes.
 
@@ -140,9 +140,12 @@ gdb  : stop  puis  bt  puis  go  (la cible tourne en « continue & » ; stop = i
   `telnet 0 44444` (`gdb-telnet.py`, lancée par `run.sh`) et la commande `gdb` de
   `harvard.sh` ne peuvent pas s'y connecter. Pour les utiliser, quitter d'abord le gdb du panneau.
 - `stop` met en pause l'ARM, donc aussi le DSP (LOCKSTEP) : pendant un appel, faire `go` vite.
-- Dans l'image `.deb`, le côté P de `harvard.sh` (`pas`, `asm`, `dis`) n'est pas disponible
-  (`isa_test` et binutils tic54x ne sont pas installés : avertissements en rouge au
-  démarrage). Le côté API RAM (`d@`, `d@!`) fonctionne.
+- L'image installe objdump et gas tic54x (binutils 2.21.1, vérifié en SHA-256, étage `tic54x`
+  du `Dockerfile`) : `harvard.sh` désassemble la ROM à PC et assemble côté P. `isa_test` n'est pas
+  installé (avertissement en rouge au démarrage) : `pas` n'est pas disponible. Le côté API RAM
+  (`d@`, `d@!`) fonctionne.
+- `harvard.sh stop`, `go` et `dsp` lisent les registres du DSP dans `/proc/<pid>/mem` : il faut
+  `--cap-add SYS_PTRACE`, que `docker-run.sh` donne.
 - Accès navigateur (optionnel, désactivé par défaut) : `sudo TTYD=1 ./docker-run.sh`, puis
   <http://127.0.0.1:7681/>. Le serveur ttyd sert la même session tmux, accepte un seul client et n'a pas
   d'authentification : le port n'est publié que sur `127.0.0.1` (`TTYD_PORT` pour le changer).
@@ -240,19 +243,21 @@ hangup 1
 
 ## Version vérifiée
 
-**Commit fonctionnel : [`33cc0f2`](https://github.com/bbaranoff/osmo-minioperator/commit/33cc0f2)** — vérifié le **2026-10-29**
-(détail, commandes et sorties complètes : [Tests](#tests)).
-
-LU ACCEPT, 2 appels sur 2 vers le 600, voix descendante (vocodeur ROM sur `gsm_audio`)
-et montante (1 kHz renvoyé par l'écho), à `INSNS=120000` (défaut de `run-dsp.sh`).
-`install.sh` (natif) n'est pas couvert par cette vérification.
+**Vérifié le 2026-11-08** sur l'image construite depuis les sources (`BUILD_DEB=1`) aux commits
+ci-dessous, lancée comme `docker-run.sh` (dont `SYS_PTRACE`) : LU ACCEPT, 2 appels sur 2 vers le 600
+(`./verif.sh`), voix descendante (vocodeur ROM) et montante (1 kHz renvoyé par l'écho), SMS dans les
+deux sens (téléphone → 100101 et VTY du MSC → téléphone, rangés dans `~/.osmocom/bb/sms.txt`),
+`harvard.sh stop` / `go` avec registres et désassemblage de la ROM à PC.
+Les `.deb` de la release `debs-2026-11-08` sont tirés de cette image (`./make-debs.sh`).
+Vérification précédente : commit [`33cc0f2`](https://github.com/bbaranoff/osmo-minioperator/commit/33cc0f2), 2026-10-29
+(détail : [Tests](#tests)). `install.sh` (natif) n'est pas couvert.
 
 Les dépôts compilés au build sont figés par `git checkout` (Dockerfile et `install.sh`) :
 
 | Dépôt | Commit |
 |---|---|
-| [qosmO](https://github.com/bbaranoff/qosmO) | `cc9c9c02ed0cab3b4eef7917062923df94e3809e` |
-| [c54x_exe](https://github.com/bbaranoff/c54x_exe) | `0097a4be162733e0edf6cc2eab2db5110a12bfa4` |
+| [qosmo](https://github.com/bbaranoff/qosmo) | `388b57575efbf4ecfdce83dd04617c3bc8bdf00a` |
+| [c54x_exe](https://github.com/bbaranoff/c54x_exe) | `0a7347d17c629d60457d99670ff4578214d86559` |
 | [firmware](https://github.com/bbaranoff/firmware) | `cb97f3f6a071726b52b6c7fd88f096b0d5bbfb48` |
 | [osmocom-bb](https://gitea.osmocom.org/phone-side/osmocom-bb) | `eac4eed1eff1003517fbc3e48c360a525707c4ab` |
 
@@ -275,7 +280,7 @@ par paquet** : on ne peut donc pas les pinner (`osmo-msc=1.16.0` échouerait dè
 suivante). Le build compare l'image à `configs/versions-verifiees.txt`, affiche un
 `ATTENTION` en cas d'écart (liste dans `/opt/GSM/osmo-minioperator/versions-image.txt`)
 et, avec `--build-arg STRICT_VERSIONS=1`, échoue. Versions de la vérification :
-osmo-stp 2.3.0, osmo-hlr 1.9.4, osmo-mgw 1.16.1, osmo-msc 1.16.0, osmo-bsc 1.15.0,
+osmo-stp 2.3.0, osmo-hlr 1.9.5, osmo-mgw 1.16.1, osmo-msc 1.16.0, osmo-bsc 1.15.0,
 osmo-bts-trx 1.12.0, osmo-pcu 1.5.3, osmo-sip-connector 1.7.2, libosmocore 1.14.2,
 Asterisk 20.6.0 (Ubuntu 24.04).
 

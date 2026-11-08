@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 Bastien Baranoff
 # SPDX-License-Identifier: GPL-3.0-or-later
-# verif.sh - verdict automatique de l'operateur en mode DSP :
-#   1. utilise la pile deja lancee ; sinon (ou avec --restart) la lance par run-dsp.sh
-#   2. attend le LOCATION UPDATING ACCEPT
-#   3. N appels au 600 (echo Asterisk), pour chacun :
-#        appel      : canal Asterisk Up
-#        voix DL    : l'annonce d'Asterisk sort du vocodeur ROM sur gsm_audio
-#        voix UL    : un 1 kHz injecte dans gsm_mic (micro du mobile) revient par l'echo
-#   4. resume ; code de sortie 0 si tout est OK
+# verif.sh - automatic verdict for the operator in DSP mode:
+#   1. uses the stack already running; otherwise (or with --restart) starts it with run-dsp.sh
+#   2. waits for LOCATION UPDATING ACCEPT
+#   3. N calls to 600 (Asterisk echo), for each one:
+#        call       : Asterisk channel Up
+#        DL voice   : Asterisk's announcement comes out of the ROM vocoder on gsm_audio
+#        UL voice   : a 1 kHz tone injected into gsm_mic (the mobile's mic) comes back through the echo
+#   4. summary; exit code 0 if everything is OK
 #
-#   ./verif.sh                     2 appels (lance la pile si elle ne tourne pas)
-#   ./verif.sh --appels 3          3 appels
-#   ./verif.sh --restart           relance toute la pile d'abord (le LU en cours est perdu)
+#   ./verif.sh                     2 calls (starts the stack if it is not running)
+#   ./verif.sh --appels 3          3 calls
+#   ./verif.sh --restart           restarts the whole stack first (the current LU is lost)
 #
-# Les enregistrements de chaque appel restent dans /tmp/verif/ (s16le 8 kHz mono).
-# Avec le PulseAudio de l'hote, l'annonce et le 1 kHz s'entendent dans les haut-parleurs.
+# The recordings of each call stay in /tmp/verif/ (s16le 8 kHz mono).
+# With the host PulseAudio, the announcement and the 1 kHz tone play on the speakers.
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APPELS=2 RESTART=auto
@@ -25,7 +25,7 @@ while [ $# -gt 0 ]; do
         --restart) RESTART=1 ;;
         --no-restart) RESTART=0 ;;
         -h|--help) sed -n '4,17p' "$0"; exit 0 ;;
-        *) echo "option inconnue : $1" >&2; exit 2 ;;
+        *) echo "unknown option: $1" >&2; exit 2 ;;
     esac
     shift
 done
@@ -35,33 +35,33 @@ LU_TIMEOUT="${LU_TIMEOUT:-300}"
 
 say() { printf '\033[1m[verif]\033[0m %s\n' "$*"; }
 
-# Par defaut, ne pas casser une pile qui tourne (et son LU) : on ne relance que
-# si le mobile ou le pont manquent.
+# By default, do not break a running stack (and its LU): restart only if the
+# mobile or the bridge is missing.
 if [ "$RESTART" = auto ]; then
     if pgrep -x mobile >/dev/null && pgrep -f 'pont/pont_dsp[.]py' >/dev/null; then
-        RESTART=0; say "pile deja lancee : utilisee telle quelle (--restart pour la relancer)"
+        RESTART=0; say "stack already running: used as is (--restart to restart it)"
     else
         RESTART=1
     fi
 fi
 if [ "$RESTART" = 1 ]; then
-    say "lancement de la pile (run-dsp.sh) ..."
-    mkdir -p "$LOG_DIR"   # conteneur neuf : run-dsp.sh ne l'a pas encore cree
-    "$HERE/run-dsp.sh" > "$LOG_DIR/../verif-run-dsp.log" 2>&1 || { say "ECHEC run-dsp.sh (voir $LOG_DIR/../verif-run-dsp.log)"; exit 1; }
+    say "starting the stack (run-dsp.sh) ..."
+    mkdir -p "$LOG_DIR"   # fresh container: run-dsp.sh has not created it yet
+    "$HERE/run-dsp.sh" > "$LOG_DIR/../verif-run-dsp.log" 2>&1 || { say "run-dsp.sh FAILED (see $LOG_DIR/../verif-run-dsp.log)"; exit 1; }
 fi
 [ -r "$LOG_DIR/pulse_server" ] && export PULSE_SERVER="$(cat "$LOG_DIR/pulse_server")"
 [ "${PULSE_SERVER:-}" = defaut ] && unset PULSE_SERVER
 
-say "attente du LOCATION UPDATING ACCEPT (max ${LU_TIMEOUT}s) ..."
+say "waiting for LOCATION UPDATING ACCEPT (max ${LU_TIMEOUT}s) ..."
 t=0
 until grep -aq 'LOCATION UPDATING ACCEPT' "$MOBILE_LOG" 2>/dev/null; do
-    [ "$t" -ge "$LU_TIMEOUT" ] && { say "ECHEC : pas de LU ACCEPT en ${LU_TIMEOUT}s"; exit 1; }
+    [ "$t" -ge "$LU_TIMEOUT" ] && { say "FAILED: no LU ACCEPT within ${LU_TIMEOUT}s"; exit 1; }
     sleep 2; t=$((t + 2))
 done
-say "LU ACCEPT ($([ "$RESTART" = 1 ] && echo "en ${t}s" || echo "deja obtenu"))"
-# Apres le LU, le canal est libere et le mobile se recale sur la cellule : un
-# appel lance dans la meme seconde voit son RACH ignore (cause 47).
-[ "$RESTART" = 1 ] && { say "recalage du mobile apres le LU (20 s) ..."; sleep 20; }
+say "LU ACCEPT ($([ "$RESTART" = 1 ] && echo "in ${t}s" || echo "already obtained"))"
+# After the LU, the channel is released and the mobile re-syncs to the cell: a
+# call placed in the same second gets its RACH ignored (cause 47).
+[ "$RESTART" = 1 ] && { say "letting the mobile re-sync after the LU (20 s) ..."; sleep 20; }
 
 exec python3 -I - "$APPELS" <<'PY'
 import array, math, os, socket, subprocess, sys, time
@@ -98,7 +98,7 @@ def lire(chemin, depuis=0):
 def rms(s): return math.sqrt(sum(x * x for x in s) / len(s)) if s else 0.0
 
 def part_1k(s):
-    """Part de l'energie a 1 kHz (Goertzel) dans le segment."""
+    """Share of the energy at 1 kHz (Goertzel) in the segment."""
     if not s: return 0.0
     k = 2 * math.cos(2 * math.pi * 1000 / TAUX); s1 = s2 = 0.0
     for x in s: s0 = x + k * s1 - s2; s2, s1 = s1, s0
@@ -127,7 +127,7 @@ def appel(i):
         if not canaux_up():
             return res
         res["appel"] = True
-        # annonce : attendre le debut (RMS > seuil) puis la fin (2 s calmes)
+        # announcement: wait for the start (RMS > threshold), then the end (2 s of quiet)
         debut = fin = None; pos = 0; t1 = time.time()
         while time.time() - t1 < 90:
             time.sleep(1)
@@ -143,7 +143,7 @@ def appel(i):
             if fin is not None and pos - fin >= 2 * TAUX: break
         if debut is None:
             return res
-        # echo : 4 s de 1 kHz dans le micro du mobile, on cherche le retour
+        # echo: 4 s of 1 kHz into the mobile's mic, then look for the return
         marque = len(lire(raw))
         subprocess.run(["pacat", "--playback", "--device=gsm_mic", "--format=s16le", f"--rate={TAUX}",
                         "--channels=1", "--raw"], input=ton(4.0))
@@ -157,14 +157,14 @@ def appel(i):
 
 ok_total = True
 for i in range(1, APPELS + 1):
-    dire(f"appel {i}/{APPELS} vers {DEST} ...")
+    dire(f"call {i}/{APPELS} to {DEST} ...")
     r = appel(i)
     v_appel = r["appel"]; v_dl = r["dl"] > SEUIL_DL; v_ul = r["ul"] > SEUIL_TON
     ok = v_appel and v_dl and v_ul; ok_total &= ok
-    dire(f"appel {i} : {'OK' if ok else 'ECHEC'}  | etabli {'oui' if v_appel else 'NON'}{' (2e tentative)' if r['essais'] == 2 else ''}"
-         f" | voix DL {'oui' if v_dl else 'NON'} (RMS max {r['dl']:.0f})"
-         f" | voix UL (echo 1 kHz) {'oui' if v_ul else 'NON'} (part 1 kHz {r['ul']:.2f})")
+    dire(f"call {i}: {'OK' if ok else 'FAILED'}  | established {'yes' if v_appel else 'NO'}{' (2nd attempt)' if r['essais'] == 2 else ''}"
+         f" | DL voice {'yes' if v_dl else 'NO'} (max RMS {r['dl']:.0f})"
+         f" | UL voice (1 kHz echo) {'yes' if v_ul else 'NO'} (1 kHz share {r['ul']:.2f})")
     time.sleep(3)
-dire("VERDICT : " + ("OK - attachement, appels, voix descendante et montante" if ok_total else "ECHEC (voir ci-dessus)"))
+dire("VERDICT: " + ("OK - attach, calls, downlink and uplink voice" if ok_total else "FAILED (see above)"))
 sys.exit(0 if ok_total else 1)
 PY

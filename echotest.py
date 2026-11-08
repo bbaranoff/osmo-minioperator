@@ -160,8 +160,10 @@ def mm_start(nom):
         return
     f = os.path.join(MM_DIR, "echotest-%d-ul.wav" % int(T0))
     mm.update(nom=nom, f=f, t=time.time() - T0)
-    subprocess.run(["asterisk", "-rx", "mixmonitor start %s %s/echotest-%d-mix.wav r(%s)" % (nom, MM_DIR, int(T0), f)],
-                   capture_output=True, timeout=5)
+    # one argument "file,options" (the MixMonitor application syntax): with a space, r() was not taken
+    r = subprocess.run(["asterisk", "-rx", "mixmonitor start %s %s/echotest-%d-mix.wav,r(%s)" % (nom, MM_DIR, int(T0), f)],
+                       capture_output=True, text=True, timeout=5)
+    mm["rsp"] = (r.stdout + r.stderr).strip()
 
 
 def mm_stop():
@@ -207,8 +209,14 @@ def ecrire_audio_gsm():
     p("recorded in %s: echo.cast; dl.wav (GSM downlink from %.1f s), ul.wav (GSM uplink %s), echo.wav (both); %.1f s"
       % (a.rec, debut_dl, ("from %.1f s, %.1f s long" % (debut_ul, len(ul) / TAUX)) if debut_ul is not None else "MISSING",
          n / TAUX))
-    for f in (mm.get("f"), mm.get("f", "").replace("-ul.wav", "-mix.wav")):   # Asterisk's copies, now in ul.wav
-        if f and os.path.exists(f): os.remove(f)
+    if debut_ul is not None:                         # Asterisk's copies, now in ul.wav (kept when the uplink is missing)
+        for f in (mm.get("f"), mm.get("f", "").replace("-ul.wav", "-mix.wav")):
+            if f and os.path.exists(f): os.remove(f)
+    elif mm:
+        p("uplink: mixmonitor on %s answered %r; files in %s: %s" % (mm["nom"], mm.get("rsp", ""), MM_DIR,
+          " ".join(sorted(os.listdir(MM_DIR))) or "none"))
+    else:
+        p("uplink: no Asterisk channel seen during the call, mixmonitor never started")
     if not os.environ.get("ECHO_LIVE"):
         p("MP4: on the host, sudo /opt/GSM/demos/osmo/echo-mp4.sh   (or run sudo /opt/GSM/demos/osmo/echo-live.sh next time: MP4 right after Ctrl-C)")
 

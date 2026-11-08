@@ -80,13 +80,13 @@ class Reporter(threading.Thread):
         s = self.stats
         while True:
             time.sleep(self.period)
-            log.info("STATS fn=%u | DL bursts=%d blocs=%d crc=%d dummy=%d hors_voie=%d | UL bursts=%d tard=%d rach=%d"
-                     " | TCH dl=%d facch=%d sacch=%d crc=%d ul=%d bursts=%d perdus=%d | FACCH ul=%d SACCH ul=%d"
-                     " | A5 dl=%d ul=%d | xCCH ul rom=%d hote=%d rom_ko=%d"
-                     " | AIR rom rach=%d xcch=%d pdch=%d tch=%d | AIR hote tch=%d puits=%d"
-                     " | TCH ul rom F=%d S=%d P=%d jete F=%d S=%d P=%d hote F=%d S=%d P=%d"
-                     " | A5 ul rom=%d hote_tch=%d"
-                     " | B inconnu=%d pdtch_hote_jete=%d xcch_ombre_ko=%d | TCH rom retard=%s..%s sacch_t_blocs=%d%s",
+            log.info("STATS fn=%u | DL bursts=%d blocks=%d crc=%d dummy=%d off_path=%d | UL bursts=%d late=%d rach=%d"
+                     " | TCH dl=%d facch=%d sacch=%d crc=%d ul=%d bursts=%d dropped=%d | FACCH ul=%d SACCH ul=%d"
+                     " | A5 dl=%d ul=%d | xCCH ul rom=%d host=%d rom_ko=%d"
+                     " | AIR rom rach=%d xcch=%d pdch=%d tch=%d | AIR host tch=%d sink=%d"
+                     " | TCH ul rom F=%d S=%d P=%d dropped F=%d S=%d P=%d host F=%d S=%d P=%d"
+                     " | A5 ul rom=%d host_tch=%d"
+                     " | B unknown=%d pdtch_host_dropped=%d xcch_shadow_ko=%d | TCH rom delay=%s..%s sacch_t_blocks=%d%s",
                      self.clock.fn(), s.dl_bursts, s.dl_blocks, s.dl_crc_fail, s.dl_dummy, s.dl_skipped,
                      s.ul_sent, s.ul_late, s.rach, s.tch_dl, s.tch_facch_dl, s.tch_sacch_dl, s.tch_crc,
                      s.tch_ul, s.tch_ul_bursts, s.tch_ul_dropped, s.facch_ul, s.sacch_ul, s.a5_dl, s.a5_ul,
@@ -103,8 +103,8 @@ class Reporter(threading.Thread):
             ded = self.dedicated.plan()
             if ded:
                 plan, ss, tn = ded
-                log.info("canal dedie : %s SS=%d TS=%d (DL fn%%51=%d, UL fn%%51=%d)",
+                log.info("dedicated channel: %s SS=%d TS=%d (DL fn%%51=%d, UL fn%%51=%d)",
                          plan.name, ss, tn, plan.sdcch_dl[ss % plan.n_sub], plan.ul_base(ss))
             if s.by_base:
-                log.info("blocs par TS/base51 (ok/echec) : %s",
+                log.info("blocks per TS/base51 (ok/fail): %s",
                          " ".join("TS%d/%d:%d/%d" % (k[0], k[1], v[0], v[1]) for k, v in sorted(s.by_base.items())))

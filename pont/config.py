@@ -42,13 +42,13 @@ class Config:
 
 
 def parse(argv=None):
-    p = argparse.ArgumentParser(prog="pont", description="Pont TRX entre le BTS et la couche 1 gr-gsm de QEMU")
+    p = argparse.ArgumentParser(prog="pont", description="TRX bridge between the BTS and the QEMU gr-gsm layer 1")
     p.add_argument("--arfcn", type=int, default=int(_env("PONT_ARFCN", "514")))
     p.add_argument("--bsic", type=int, default=int(_env("PONT_BSIC", "7")))
     p.add_argument("--trx-bind", default=_env("PONT_TRX_BIND", "127.0.0.1"))
     p.add_argument("--trx-base", type=int, default=int(_env("PONT_TRX_BASE", "5700")))
     p.add_argument("--dsp-port", type=int, default=int(_env("PONT_DSP_PORT", "0")),
-                   help="port UDP du BSP du DSP C54x (c54x_exe --arm / qosmo-dsp) : 6702 ; 0 = coupe")
+                   help="UDP port of the C54x DSP BSP (c54x_exe --arm / qosmo-dsp): 6702; 0 = off")
     p.add_argument("--bsc-cfg", default=_env("PONT_BSC_CFG", "/etc/osmocom/osmo-bsc.cfg"))
     p.add_argument("--no-tap", action="store_true", default=not _flag("PONT_TAP", "1"))
     p.add_argument("--no-record", action="store_true", default=not _flag("PONT_AIRREC", "1"))

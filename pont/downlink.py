@@ -244,7 +244,7 @@ class Downlink:
             import time
             ra = l2[7]
             if ra not in _rach_ra or time.monotonic() - _imm_ass_retenue[0] < IMM_ASS_GARDE_S:
-                log.info("IMMEDIATE ASSIGNMENT (fn=%u) : SDCCH TS%d SS%d pour RA 0x%02x, ignoree (RACH du mobile : %s)",
+                log.info("IMMEDIATE ASSIGNMENT (fn=%u): SDCCH TS%d SS%d for RA 0x%02x, ignored (mobile RACH: %s)",
                          fn, cn & 7, ss, ra, " ".join("0x%02x" % r for r in _rach_ra) or "-")
                 return
             _imm_ass_retenue[0] = time.monotonic()
@@ -252,7 +252,7 @@ class Downlink:
         from .state import ecrire_dcch
         _dcch_gen[0] += 1                                  # cancels a pending deferred release
         ecrire_dcch(kind, ss, cn)
-        log.info("IMMEDIATE ASSIGNMENT (fn=%u) : SDCCH/%d TS%d SS%d -> calypso_dcch_cfg (firmware TI)",
+        log.info("IMMEDIATE ASSIGNMENT (fn=%u): SDCCH/%d TS%d SS%d -> calypso_dcch_cfg (TI firmware)",
                  fn, 8 if kind else 4, cn & 7, ss)
 
     def _rr_downlink(self, l2, fn):
@@ -260,7 +260,7 @@ class Downlink:
         if mt == gsm.RR_ASSIGNMENT_COMMAND and len(l2) > off + 4:
             b0, b1, b2 = l2[off + 2], l2[off + 3], l2[off + 4]
             if (b1 >> 4) & 1:
-                log.warning("ASSIGNMENT COMMAND avec saut de frequence : TCH non arme (fn=%u)", fn)
+                log.warning("ASSIGNMENT COMMAND with frequency hopping: TCH not armed (fn=%u)", fn)
                 return
             self.tch.arm(b0 & 0x07, (b1 >> 5) & 0x07, ((b1 & 0x03) << 8) | b2)
         elif mt == gsm.RR_CHANNEL_RELEASE:
@@ -284,9 +284,9 @@ class Downlink:
         delai = float(os.environ.get("PONT_DCCH_REL_DELAI", "1.5"))
         def _liberer():
             if _dcch_gen[0] == gen:
-                self.tch.close("%s, liberation differee (firmware TI)" % quoi)
+                self.tch.close("%s, deferred release (TI firmware)" % quoi)
                 ecrire_dcch(DCCH_RELEASED, 0, 0)
-                log.info("%s (fn=%u) : calypso_dcch_cfg libere apres %.1f s (firmware TI)", quoi, fn, delai)
+                log.info("%s (fn=%u): calypso_dcch_cfg released after %.1f s (TI firmware)", quoi, fn, delai)
         t = threading.Timer(delai, _liberer)
         t.daemon = True
         t.start()

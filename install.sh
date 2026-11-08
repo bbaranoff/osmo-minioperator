@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 Bastien Baranoff
 # SPDX-License-Identifier: GPL-3.0-or-later
-# install.sh - osmo-minioperator en natif (Ubuntu 24.04)
+# install.sh - osmo-minioperator, native install (Ubuntu 24.04)
 # ─────────────────────────────────────────────────────────────────────────────
-# Equivalent natif du Dockerfile : meme pile Osmocom (depuis les .deb amont),
-# meme qosmo + c54x_exe compiles, meme firmware. A lancer en root sur une
+# Native equivalent of the Dockerfile: same Osmocom stack (from the upstream
+# .debs), same qosmo + c54x_exe builds, same firmware. Run as root on an
 # ubuntu:24.04 (noble).
 #
-#   pile Osmocom reseau   depot binaire OBS osmocom:latest (pas de compilation)
-#   /opt/GSM/qosmo        QEMU arm-softmmu --enable-l1-grgsm + lanceur `qosmo`
-#   /opt/GSM/c54x_exe     le C54x hors QEMU (lie a libosmocoding/libosmocore)
-#   /opt/GSM/firmware     binaires prebuild (github.com/bbaranoff/firmware)
+#   Osmocom network stack OBS binary repo osmocom:latest (no compilation)
+#   /opt/GSM/qosmo        QEMU arm-softmmu --enable-l1-grgsm + `qosmo` launcher
+#   /opt/GSM/c54x_exe     the C54x outside QEMU (linked to libosmocoding/libosmocore)
+#   /opt/GSM/firmware     prebuilt binaries (github.com/bbaranoff/firmware)
 #
-# Idempotent : chaque etape saute si sa cible existe deja.
+# Idempotent: each step is skipped if its target already exists.
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -20,27 +20,27 @@ ROOT=/opt/GSM
 OSMO_OBS=${OSMO_OBS:-https://downloads.osmocom.org/packages/osmocom:/latest/xUbuntu_24.04}
 OSMO_ASC_URL=${OSMO_ASC_URL:-https://obs.osmocom.org/projects/osmocom/public_key}
 OSMOCOM_BB_REF=${OSMOCOM_BB_REF:-eac4eed1}
-# Commits figes (verifies : LU + voix ROM).
+# Pinned commits (verified: LU + ROM voice).
 QOSMO_REF=${QOSMO_REF:-cc9c9c02ed0cab3b4eef7917062923df94e3809e}
 C54X_EXE_REF=${C54X_EXE_REF:-0097a4be162733e0edf6cc2eab2db5110a12bfa4}
 FIRMWARE_REF=${FIRMWARE_REF:-cb97f3f6a071726b52b6c7fd88f096b0d5bbfb48}
-# Dump ROM DSP 3606 (publie par FreeCalypso) : URL essayees dans l'ordre
-# (URL completes du dump) ; la premiere au bon SHA-256 gagne.
+# DSP ROM 3606 dump (published by FreeCalypso): URLs tried in order
+# (full URLs of the dump); the first one with the right SHA-256 wins.
 ROM_MIRRORS=${ROM_MIRRORS:-https://gist.githubusercontent.com/bbaranoff/ba2746dd4fe6117475d95f791bf7df35/raw/16a4e486776315ecdf6c8972c58e877fa19785c5/calypso_dsp.txt https://raw.githubusercontent.com/bbaranoff/fc-magnetite/main/freecalypso-env/dsp-rom-3606-dump.txt https://www.freecalypso.org/pub/GSM/Calypso/dsp-rom-3606-dump.txt}
-# SHA-256 du dump ROM DSP 3606 verifie (dsp-rom-3606-dump.txt -> calypso_dsp.txt).
+# Verified SHA-256 of the DSP ROM 3606 dump (dsp-rom-3606-dump.txt -> calypso_dsp.txt).
 CALYPSO_DSP_SHA256=${CALYPSO_DSP_SHA256:-e35798f50fd0a29aa61cd53e417c010d7f172582c7bc055211daab8af1e05470}
 export DEBIAN_FRONTEND=noninteractive
 export GIT_TERMINAL_PROMPT=0
 export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
 export LD_LIBRARY_PATH=/usr/local/lib
 
-# clone_fige <url> <dir> <ref> : clone + checkout du commit fige. Un arbre deja
-# present n'est pas touche (arbre de dev) : on signale seulement un ecart.
+# clone_fige <url> <dir> <ref>: clone + checkout of the pinned commit. A tree already
+# present is not touched (dev tree): a mismatch is only reported.
 clone_fige() {
     local url="$1" dir="$2" ref="$3"
     if [ -d "$dir/.git" ]; then
         [ "$(git -C "$dir" rev-parse HEAD)" = "$(git -C "$dir" rev-parse "$ref^{commit}" 2>/dev/null)" ] \
-            || echo "ATTENTION : $dir existe et n'est pas au commit fige $ref (laisse tel quel)"
+            || echo "WARNING: $dir exists and is not at the pinned commit $ref (left as is)"
         return 0
     fi
     git clone "$url" "$dir" && git -C "$dir" checkout -q "$ref"
@@ -49,12 +49,12 @@ clone_fige() {
 log() { echo -e "\n\033[1;36m== $* ==\033[0m"; }
 
 if [ "$(id -u)" -ne 0 ]; then
-    echo "A lancer en root (sudo bash install.sh)." >&2
+    echo "Run as root (sudo bash install.sh)." >&2
     exit 1
 fi
 
-# ── 1. Dependances de build ──────────────────────────────────────────────────
-log "Dependances apt (build qosmo + c54x_exe)"
+# ── 1. Build dependencies ────────────────────────────────────────────────────
+log "apt dependencies (build qosmo + c54x_exe)"
 apt-get update
 apt-get install -y --no-install-recommends \
     build-essential git gcc g++ make cmake autoconf automake libtool pkg-config \
@@ -63,19 +63,19 @@ apt-get install -y --no-install-recommends \
     libglib2.0-dev libpixman-1-dev libslirp-dev socat ninja-build \
     iproute2 procps psmisc util-linux
 
-# ── 2. Depot binaire Osmocom + pile reseau (.deb amont) ──────────────────────
-log "Depot Osmocom (OBS) + pile reseau"
-# Cle publique armee (.asc) en /usr/share/osmocom-keyring/ : le paquet
-# osmocom-keyring la met a jour la quand elle est etendue.
+# ── 2. Osmocom binary repo + network stack (upstream .debs) ──────────────────
+log "Osmocom repo (OBS) + network stack"
+# Armored public key (.asc) in /usr/share/osmocom-keyring/: the
+# osmocom-keyring package updates it there when it is extended.
 install -d /usr/share/osmocom-keyring
 curl -fsSL "${OSMO_ASC_URL}" -o /usr/share/osmocom-keyring/osmocom.asc
 echo "deb [signed-by=/usr/share/osmocom-keyring/osmocom.asc] ${OSMO_OBS}/ ./" \
     > /etc/apt/sources.list.d/osmocom.list
 apt-get update
-# libosmocore-dev : libosmocoding.pc + libosmocore.pc pour le link de c54x_exe.
-# osmo-stp : MSC et BSC parlent SS7 (M3UA) au travers de lui. telnet : provisioning
-# HLR par la VTY (run-dsp.sh).
-# libosmo-csn1-dev + libosmo-gprs-*-dev : requis par osmocom-bb (pkg-config).
+# libosmocore-dev: libosmocoding.pc + libosmocore.pc to link c54x_exe.
+# osmo-stp: MSC and BSC speak SS7 (M3UA) through it. telnet: HLR provisioning
+# through the VTY (run-dsp.sh).
+# libosmo-csn1-dev + libosmo-gprs-*-dev: required by osmocom-bb (pkg-config).
 apt-get install -y --no-install-recommends \
     libosmocore-dev telnet \
     osmo-stp osmo-hlr osmo-mgw osmo-msc osmo-bsc osmo-bts osmo-pcu osmo-trx \
@@ -87,7 +87,7 @@ apt-get install -y --no-install-recommends \
 git config --global http.postBuffer 524288000
 mkdir -p "$ROOT"
 
-# ── 3. qosmo : QEMU arm-softmmu --enable-l1-grgsm ────────────────────────────
+# ── 3. qosmo: QEMU arm-softmmu --enable-l1-grgsm ─────────────────────────────
 log "qosmo (QEMU Calypso)"
 if [ ! -x /usr/local/bin/qosmo ]; then
     clone_fige https://github.com/bbaranoff/qosmO "$ROOT/qosmo" "$QOSMO_REF"
@@ -105,48 +105,48 @@ if [ ! -x /usr/local/bin/qosmo ]; then
     cp "$ROOT/qemu-install/bin/qosmo" /usr/local/bin/qosmo
     deactivate || true
 else
-    echo "qosmo deja installe, saute."
+    echo "qosmo already installed, skipped."
 fi
 
-# ── 4. Firmware Calypso (prebuild) ───────────────────────────────────────────
-log "Firmware Calypso"
+# ── 4. Calypso firmware (prebuilt) ───────────────────────────────────────────
+log "Calypso firmware"
 clone_fige https://github.com/bbaranoff/firmware "$ROOT/firmware" "$FIRMWARE_REF"
 
-# ── 5. c54x_exe : le C54x hors QEMU ──────────────────────────────────────────
-# -march=native retire des CFLAGS (SIGILL possible si le CPU d'exec differe).
-log "c54x_exe (C54x hors QEMU)"
+# ── 5. c54x_exe: the C54x outside QEMU ───────────────────────────────────────
+# -march=native removed from CFLAGS (possible SIGILL if the run CPU differs).
+log "c54x_exe (C54x outside QEMU)"
 clone_fige https://github.com/bbaranoff/c54x_exe "$ROOT/c54x_exe" "$C54X_EXE_REF"
 cd "$ROOT/c54x_exe"
 make QOSMO="$ROOT/qosmo" \
     CFLAGS="-O3 -g -Wall -Werror=format -Werror=format-extra-args -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-sign-compare"
 ROM_SRC="$(mktemp -d)"; ok=0
 for url in $ROM_MIRRORS; do
-    echo "ROM DSP : essai $url"
+    echo "DSP ROM: trying $url"
     curl -fsSL --retry 2 -o "$ROM_SRC/dsp-rom-3606-dump.txt" "$url" \
         && echo "$CALYPSO_DSP_SHA256  $ROM_SRC/dsp-rom-3606-dump.txt" | sha256sum -c - \
         && { ok=1; break; } || true
 done
-[ "$ok" = 1 ] || { echo "ROM DSP : aucun miroir au SHA-256 attendu ($ROM_MIRRORS) - abandon" >&2; exit 1; }
+[ "$ok" = 1 ] || { echo "DSP ROM: no mirror with the expected SHA-256 ($ROM_MIRRORS) - giving up" >&2; exit 1; }
 FREECALYPSO_URL="file://$ROM_SRC" bash rom/fetch-rom.sh --dest "$ROOT" --dest "$ROOT/c54x_exe/rom"
 mv "$ROM_SRC/dsp-rom-3606-dump.txt" "$ROOT/calypso_dsp.txt"; rmdir "$ROM_SRC"
 cp "$ROOT/calypso_dsp.txt" rom/calypso_dsp.txt
 
-# ── 6. osmocom-bb : layer 2/3 (mobile), osmocon, trxcon ──────────────────────
-# Compile dans src/ avec `make nofirmware` (host tools, PAS le firmware). Pin
-# eac4eed1 : au-dela, trxcon sort de `make nofirmware`.
-log "osmocom-bb (make nofirmware dans src/)"
+# ── 6. osmocom-bb: layer 2/3 (mobile), osmocon, trxcon ───────────────────────
+# Built in src/ with `make nofirmware` (host tools, NOT the firmware). Pin
+# eac4eed1: beyond it, trxcon leaves `make nofirmware`.
+log "osmocom-bb (make nofirmware in src/)"
 if [ ! -x "$ROOT/osmocom-bb/src/host/layer23/src/mobile/mobile" ]; then
     [ -d "$ROOT/osmocom-bb" ] || git clone https://gitea.osmocom.org/phone-side/osmocom-bb "$ROOT/osmocom-bb"
     git -C "$ROOT/osmocom-bb" checkout -q "$OSMOCOM_BB_REF"
     make -C "$ROOT/osmocom-bb/src" nofirmware
 else
-    echo "osmocom-bb deja compile, saute."
+    echo "osmocom-bb already built, skipped."
 fi
-# make nofirmware n'installe rien : on expose `mobile` dans le PATH.
+# make nofirmware installs nothing: expose `mobile` in the PATH.
 ln -sf "$ROOT/osmocom-bb/src/host/layer23/src/mobile/mobile" /usr/local/bin/mobile
 
-# ── 7. Configs figees (mono-operateur) -> /etc/osmocom ───────────────────────
-log "Configs figees -> /etc/osmocom"
+# ── 7. Frozen configs (single operator) -> /etc/osmocom ──────────────────────
+log "Frozen configs -> /etc/osmocom"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 install -d /etc/osmocom /var/lib/osmocom
 cp "$HERE/configs/"*.cfg /etc/osmocom/
@@ -155,4 +155,4 @@ cp "$HERE/configs/asterisk/"*.conf /etc/asterisk/
 chmod +x "$HERE/run-dsp.sh" "$HERE/start.sh" "$HERE/docker-run.sh" 2>/dev/null || true
 
 ldconfig
-log "Termine. Lancer l'operateur en DSP : $HERE/run-dsp.sh"
+log "Done. Start the operator in DSP mode: $HERE/run-dsp.sh"

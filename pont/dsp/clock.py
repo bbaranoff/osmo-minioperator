@@ -83,8 +83,8 @@ class ClockDsp(Clock):
                 self._avance = avance
                 if self._avance_dite is None or abs(avance - self._avance_dite) >= 3:
                     self._avance_dite = avance
-                    log.info("horloge : avance BTS mesuree %+d trames (creux sur %.0f s), "
-                             "avance visee %d pour une marge DL >= %d",
+                    log.info("clock: measured BTS lead %+d frames (minimum over %.0f s), "
+                             "target advance %d for a DL margin >= %d",
                              creux, FENETRE_S, avance, MARGE_DL)
         self._mesurer_marge(now)
 
@@ -105,6 +105,6 @@ class ClockDsp(Clock):
         st[2] += marge
         st[3] += 1
         if now - st[0] >= 10.0:
-            log.info("horloge : marge DL reelle (recu - reclame par le DSP) min %+d moy %+.1f "
-                     "sur %d mesures, avance visee %d", st[1], st[2] / st[3], st[3], self._avance)
+            log.info("clock: real DL margin (received - requested by the DSP) min %+d mean %+.1f "
+                     "over %d samples, target advance %d", st[1], st[2] / st[3], st[3], self._avance)
             self._marges = [now, marge, 0, 0]

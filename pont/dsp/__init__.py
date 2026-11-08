@@ -45,8 +45,8 @@ log = logging.getLogger("pont")
 def main(argv=None):
     cfg = _config.parse(argv)
     if not cfg.dsp_port:
-        sys.exit("pont DSP : --dsp-port (ou PONT_DSP_PORT) est obligatoire, 6702 pour c54x_exe ; "
-                 "pour le montage grgsm, lancer pont/pont.py")
+        sys.exit("pont DSP: --dsp-port (or PONT_DSP_PORT) is required, 6702 for c54x_exe; "
+                 "for the grgsm setup, run pont/pont.py")
     logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                         format="%(asctime)s [pont] %(message)s", datefmt="%H:%M:%S")
     gc.disable()
@@ -72,18 +72,18 @@ def main(argv=None):
         uplink.tx_rom = transmitter
         uplink.tx = TransmitterPuits(stats, transmitter, tch)   # the TCH goes to the real Transmitter (UL_RAW_TCH)
         scheduler.tx = uplink.tx
-        log.info("PONT_UL_RAW=1 : montant = bursts finaux de la ROM (calypso_tx_rom) ; codage et A5 hote inactifs")
+        log.info("PONT_UL_RAW=1: uplink = final ROM bursts (calypso_tx_rom); host coding and A5 inactive")
 
-    log.info("pont TRX : ports %d/%d/%d, ARFCN %d, BSIC %d, avance UL %d trames",
+    log.info("pont TRX : ports %d/%d/%d, ARFCN %d, BSIC %d, UL advance %d frames",
              cfg.trx_base, cfg.trx_base + 1, cfg.trx_base + 2, cfg.arfcn, cfg.bsic, cfg.ul_fn_advance)
-    log.info("pont DSP : bursts vers le BSP udp/%d, bascule TCH suivie par le firmware (montant.c), "
-             "retard UL max %d trames, retention Kc %s",
-             cfg.dsp_port, cfg.ul_retard_max, "oui" if cfg.kc_retention else "non")
+    log.info("pont DSP: bursts to the BSP udp/%d, TCH switch follows the firmware (montant.c), "
+             "max UL delay %d frames, Kc retention %s",
+             cfg.dsp_port, cfg.ul_retard_max, "yes" if cfg.kc_retention else "no")
     for tn in sorted(timeslots):
         plan = plan_for(timeslots[tn])
-        log.info("TS%d %-12s %s", tn, timeslots[tn], ("plan %s, %d sous-voies" % (plan.name, plan.n_sub)) if plan else "")
-    log.info("QEMU : pas de GSMTAP 4730/4731 (couche 1 gr-gsm desactivee) ; tap GSMTAP %s",
-             ("udp/%d" % cfg.tap_port) if cfg.tap else "coupe")
+        log.info("TS%d %-12s %s", tn, timeslots[tn], ("plan %s, %d subchannels" % (plan.name, plan.n_sub)) if plan else "")
+    log.info("QEMU: no GSMTAP 4730/4731 (gr-gsm layer 1 disabled); GSMTAP tap %s",
+             ("udp/%d" % cfg.tap_port) if cfg.tap else "off")
 
     def _dl(tn, fn, bits):
         clock.note_dl(fn)       # real advance of the BTS, see dsp/clock.py

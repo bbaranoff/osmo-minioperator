@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
-# osmo-minioperator : pile Osmocom (debs) + qosmo + c54x_exe + osmocom-bb, run DSP.
+# osmo-minioperator: Osmocom stack (debs) + qosmo + c54x_exe + osmocom-bb, DSP run.
 # Copyright (C) 2026 Bastien Baranoff
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# BUILD_DEB=0 (defaut) : qosmo et c54x_exe viennent des .deb de la release
-# (verifies en SHA-256). BUILD_DEB=1 : compiles depuis les sources aux commits
-# figes, puis ./make-debs.sh refait les .deb a partir de l'image.
-# ARG globaux : chaque etage les redeclare sans valeur (un ARG ne traverse pas un FROM).
+# BUILD_DEB=0 (default): qosmo and c54x_exe come from the release .debs
+# (verified by SHA-256). BUILD_DEB=1: built from source at the pinned
+# commits, then ./make-debs.sh rebuilds the .debs from the image.
+# Global ARGs: each stage redeclares them without a value (an ARG does not cross a FROM).
 ARG BUILD_DEB=0
 ARG DEB_URL=https://github.com/bbaranoff/osmo-minioperator/releases/download/debs-2026-11-08
 
@@ -27,8 +27,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       iproute2 procps psmisc util-linux \
     && rm -rf /var/lib/apt/lists/*
 
-# Depot binaire Osmocom (OBS). OSMO_ASC_URL (pas *_KEY) : evite le warning
-# BuildKit SecretsUsedInArgOrEnv ; c'est une cle PUBLIQUE de signature.
+# Osmocom binary repo (OBS). OSMO_ASC_URL (not *_KEY): avoids the BuildKit
+# SecretsUsedInArgOrEnv warning; it is a PUBLIC signing key.
 ARG OSMO_OBS=https://downloads.osmocom.org/packages/osmocom:/latest/xUbuntu_24.04
 ARG OSMO_ASC_URL=https://obs.osmocom.org/projects/osmocom/public_key
 RUN install -d /usr/share/osmocom-keyring \
@@ -36,7 +36,7 @@ RUN install -d /usr/share/osmocom-keyring \
     && echo "deb [signed-by=/usr/share/osmocom-keyring/osmocom.asc] ${OSMO_OBS}/ ./" \
          > /etc/apt/sources.list.d/osmocom.list
 
-# libosmocore-dev : libosmocoding.pc + libosmocore.pc pour le link de c54x_exe.
+# libosmocore-dev: libosmocoding.pc + libosmocore.pc to link c54x_exe.
 RUN apt-get update && apt-get install -y --no-install-recommends libosmocore-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -46,9 +46,9 @@ WORKDIR ${ROOT}
 
 
 FROM base AS tic54x
-# objdump et gas tic54x pour harvard.sh (desassemblage de la ROM a PC, assemblage cote P).
-# La cible tic54x a quitte binutils depuis : on prend 2.21.1, verifie en SHA-256 (meme recette
-# que c54x_exe tools/toa23/reproduce.sh ; le vieux C demande -std=gnu89).
+# objdump and gas tic54x for harvard.sh (ROM disassembly at PC, assembly on the P side).
+# The tic54x target has left binutils since: take 2.21.1, verified by SHA-256 (same recipe
+# as c54x_exe tools/toa23/reproduce.sh; the old C needs -std=gnu89).
 ARG BU_URL=https://ftp.gnu.org/gnu/binutils/binutils-2.21.1.tar.bz2
 ARG BU_SHA256=cdecfa69f02aa7b05fbcdf678e33137151f361313b2f3e48aba925f64eabf654
 RUN apt-get update && apt-get install -y --no-install-recommends bzip2 texinfo && rm -rf /var/lib/apt/lists/* \
@@ -69,7 +69,7 @@ ARG BUILD_DEB
 ARG DEB_URL
 ARG QOSMO_DEB=qosmo_0.git20261108.388b5757_amd64.deb
 ARG QOSMO_DEB_SHA256=489290ae391cde3f3dbdeea1475330f65cc2cbb434fd4646040378a356edf02c
-# Commit fige (verifie : LU + voix ROM).
+# Pinned commit (verified: LU + ROM voice).
 ARG QOSMO_REF=388b57575efbf4ecfdce83dd04617c3bc8bdf00a
 RUN if [ "$BUILD_DEB" = 1 ]; then \
       git clone https://github.com/bbaranoff/qosmO /opt/GSM/qosmo \
@@ -98,8 +98,8 @@ ARG ROOT=/opt/GSM
 ARG BUILD_DEB
 ARG DEB_URL
 
-# Pile Osmocom reseau depuis les .deb amont (osmo-stp inclus : SS7/M3UA).
-# libosmo-csn1-dev + libosmo-gprs-*-dev : requis par osmocom-bb (pkg-config).
+# Osmocom network stack from the upstream .debs (osmo-stp included: SS7/M3UA).
+# libosmo-csn1-dev + libosmo-gprs-*-dev: required by osmocom-bb (pkg-config).
 RUN apt-get update && apt-get install -y --no-install-recommends \
       osmo-stp osmo-hlr osmo-mgw osmo-msc osmo-bsc osmo-bts osmo-pcu osmo-trx \
       osmo-sgsn osmo-ggsn osmo-sip-connector telnet \
@@ -109,18 +109,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libosmo-gprs-gmm-dev libosmo-gprs-sm-dev libosmo-gprs-sndcp-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Firmware Calypso prebuild (PHY_MODE=qemu : QEMU -kernel .elf, osmocon romload .bin).
-# Commit fige (verifie : LU + voix ROM).
+# Prebuilt Calypso firmware (PHY_MODE=qemu: QEMU -kernel .elf, osmocon romload .bin).
+# Pinned commit (verified: LU + ROM voice).
 ARG FIRMWARE_REF=cb97f3f6a071726b52b6c7fd88f096b0d5bbfb48
 RUN GIT_TERMINAL_PROMPT=0 git clone https://github.com/bbaranoff/firmware /opt/GSM/firmware \
     && git -C /opt/GSM/firmware checkout -q ${FIRMWARE_REF}
 
-# c54x_exe : CFLAGS sans -march=native (SIGILL sur un autre CPU que l'hote de build).
-# Commit fige (verifie : LU + voix ROM).
+# c54x_exe: CFLAGS without -march=native (SIGILL on a CPU other than the build host).
+# Pinned commit (verified: LU + ROM voice).
 ARG C54X_EXE_REF=0a7347d17c629d60457d99670ff4578214d86559
-# Dump ROM DSP 3606 (publie par FreeCalypso) + son SHA-256. ROM_MIRRORS : URL
-# completes du dump, essayees dans l'ordre ; la premiere au bon SHA-256
-# gagne. Un seul telechargement : fetch-rom.sh relit ensuite la copie locale (file://).
+# DSP ROM 3606 dump (published by FreeCalypso) + its SHA-256. ROM_MIRRORS: full
+# URLs of the dump, tried in order; the first one with the right SHA-256
+# wins. A single download: fetch-rom.sh then reads the local copy (file://).
 ARG ROM_MIRRORS="https://gist.githubusercontent.com/bbaranoff/ba2746dd4fe6117475d95f791bf7df35/raw/16a4e486776315ecdf6c8972c58e877fa19785c5/calypso_dsp.txt https://raw.githubusercontent.com/bbaranoff/fc-magnetite/main/freecalypso-env/dsp-rom-3606-dump.txt https://www.freecalypso.org/pub/GSM/Calypso/dsp-rom-3606-dump.txt"
 ARG CALYPSO_DSP_SHA256=e35798f50fd0a29aa61cd53e417c010d7f172582c7bc055211daab8af1e05470
 ARG C54X_DEB=c54x-exe_0.git20261108.0a7347d_amd64.deb
@@ -140,18 +140,18 @@ RUN if [ "$BUILD_DEB" = 1 ]; then \
     && cd /opt/GSM/c54x_exe \
     && install -d /tmp/rom-src && ok=0 \
     && for url in $ROM_MIRRORS; do \
-         echo "ROM DSP : essai $url"; \
+         echo "DSP ROM: trying $url"; \
          curl -fsSL --retry 2 -o /tmp/rom-src/dsp-rom-3606-dump.txt "$url" \
          && echo "${CALYPSO_DSP_SHA256}  /tmp/rom-src/dsp-rom-3606-dump.txt" | sha256sum -c - \
          && { ok=1; break; } || true; \
        done \
-    && { [ "$ok" = 1 ] || { echo "ROM DSP : aucun miroir valide ($ROM_MIRRORS)" >&2; exit 1; }; } \
+    && { [ "$ok" = 1 ] || { echo "DSP ROM: no valid mirror ($ROM_MIRRORS)" >&2; exit 1; }; } \
     && FREECALYPSO_URL=file:///tmp/rom-src bash rom/fetch-rom.sh --dest /opt/GSM --dest /opt/GSM/c54x_exe/rom \
     && mv /tmp/rom-src/dsp-rom-3606-dump.txt /opt/GSM/calypso_dsp.txt && rmdir /tmp/rom-src \
     && cp /opt/GSM/calypso_dsp.txt rom/calypso_dsp.txt
 
-# osmocom-bb : make nofirmware dans src/ (mobile, osmocon, trxcon). Pin eac4eed1
-# (au-dela trxcon sort de make nofirmware). On expose `mobile` dans le PATH.
+# osmocom-bb: make nofirmware in src/ (mobile, osmocon, trxcon). Pin eac4eed1
+# (beyond it trxcon leaves make nofirmware). Expose `mobile` in the PATH.
 ARG OSMOCOM_BB_REF=eac4eed1
 RUN git clone https://gitea.osmocom.org/phone-side/osmocom-bb /opt/GSM/osmocom-bb \
     && git -C /opt/GSM/osmocom-bb checkout -q ${OSMOCOM_BB_REF} \
@@ -159,7 +159,7 @@ RUN git clone https://gitea.osmocom.org/phone-side/osmocom-bb /opt/GSM/osmocom-b
     && make nofirmware \
     && ln -sf /opt/GSM/osmocom-bb/src/host/layer23/src/mobile/mobile /usr/local/bin/mobile
 
-# Configs figees (mono-operateur) + pont DSP + scripts.
+# Frozen configs (single operator) + DSP bridge + scripts.
 COPY configs/ /opt/GSM/osmo-minioperator/configs/
 COPY configs/asterisk/ /etc/asterisk/
 COPY pont/ /opt/GSM/osmo-minioperator/pont/
@@ -170,20 +170,20 @@ RUN chmod +x /opt/GSM/osmo-minioperator/run-dsp.sh /opt/GSM/osmo-minioperator/st
     && cp /opt/GSM/osmo-minioperator/configs/*.cfg /etc/osmocom/ \
     && cp /opt/GSM/osmo-minioperator/configs/mobile.cfg /root/.osmocom/bb/mobile.cfg
 
-# osmocom:latest ne garde qu'une version par paquet : pinner (pkg=ver) casserait le
-# build a la release suivante. On compare donc a la liste verifiee et on le dit.
+# osmocom:latest keeps only one version per package: pinning (pkg=ver) would break
+# the build at the next release. So compare to the verified list and report it.
 ARG STRICT_VERSIONS=0
 RUN grep -v '^#' /opt/GSM/osmo-minioperator/configs/versions-verifiees.txt | sort > /tmp/v-ref \
     && dpkg-query -W -f '${Package} ${Version}\n' $(cut -d' ' -f1 /tmp/v-ref) | sort > /tmp/v-img \
     && cp /tmp/v-img /opt/GSM/osmo-minioperator/versions-image.txt \
-    && if diff -u /tmp/v-ref /tmp/v-img; then echo "versions : identiques a la verification"; \
-       else echo "ATTENTION : versions differentes de la verification du 2026-11-08 (ci-dessus)"; \
+    && if diff -u /tmp/v-ref /tmp/v-img; then echo "versions: identical to the verified ones"; \
+       else echo "WARNING: versions differ from the 2026-11-08 verification (see above)"; \
             [ "$STRICT_VERSIONS" != 1 ]; fi \
     && rm -f /tmp/v-ref /tmp/v-img
 
-# Console gdb (consoles.sh) : l'ELF layer1 doit avoir ses symboles et ses sources.
-# DW_AT_comp_dir = /opt/GSM/osmocom-bb/src/target/firmware ; les sources de l'ELF
-# sont celles du depot firmware (meme commit) : substitute-path. Echec du build sinon.
+# gdb console (consoles.sh): the layer1 ELF must have its symbols and sources.
+# DW_AT_comp_dir = /opt/GSM/osmocom-bb/src/target/firmware; the ELF's sources
+# are those of the firmware repo (same commit): substitute-path. The build fails otherwise.
 RUN gdb-multiarch -q -nx -batch \
         -iex 'set substitute-path /opt/GSM/osmocom-bb/src/target/firmware /opt/GSM/firmware' \
         -ex 'list l1a_l23_handler' -ex 'info source' \
@@ -192,13 +192,13 @@ RUN gdb-multiarch -q -nx -batch \
     && grep -q 'Located in /opt/GSM/firmware/layer1/l23_api.c' /tmp/gdb-list.txt \
     && rm -f /tmp/gdb-list.txt
 
-# harvard.sh : objdump et gas tic54x (etage tic54x) aux chemins qu'il attend.
+# harvard.sh: objdump and gas tic54x (tic54x stage) at the paths it expects.
 COPY --from=tic54x /out/build-tic54x/ /opt/GSM/c54x_exe/build-tic54x/
 
-# Audio : le socket PulseAudio de l'hote est monte ici par docker-run.sh.
+# Audio: the host PulseAudio socket is mounted here by docker-run.sh.
 ENV PULSE_SERVER=unix:/run/pulse/native
 
 WORKDIR /opt/GSM/osmo-minioperator
 ENTRYPOINT ["/opt/GSM/osmo-minioperator/start.sh"]
-# Defaut : un shell, rien ne demarre (pas de tmux). Les consoles tmux : ./consoles.sh ; l'echo test : ./echo-tmux.sh.
+# Default: a shell, nothing starts (no tmux). tmux consoles: ./consoles.sh; echo test: ./echo-tmux.sh.
 CMD ["/bin/bash"]

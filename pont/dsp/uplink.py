@@ -182,8 +182,8 @@ class RomXcchRing:
                 ko += 1
                 self.n_ko = getattr(self, "n_ko", 0) + 1
                 if self.n_ko <= 5:
-                    log.info("xCCH ROM (0x3f8a) seq=%d : CRC faux en clair%s", seq,
-                             " et apres XOR du flux A5" if any(flux) else ", aucun flux A5 joint")
+                    log.info("xCCH ROM (0x3f8a) seq=%d: bad CRC in clear%s", seq,
+                             " and after XOR with the A5 stream" if any(flux) else ", no A5 stream attached")
                 continue
             if bytes(dec[:gsm.MACBLOCK_LEN]) == bytes(l2[:gsm.MACBLOCK_LEN]):
                 self.dechiffres += chiffre
@@ -218,8 +218,8 @@ class UplinkDsp(Uplink):
             self.stats.xcch_ul_rom += 1
             if self.stats.xcch_ul_rom <= 3 or self.rom.dechiffres == 1 and not getattr(self, "_dech_dit", False):
                 self._dech_dit = self.rom.dechiffres > 0
-                log.info("xCCH montant : bursts de la ROM (0x3f8a) pour %s%s", cle[:6].hex(" "),
-                         " (chiffres par la ROM, XOR A5 defait, rechiffres par le pont au fn de l'air)"
+                log.info("uplink xCCH: ROM bursts (0x3f8a) for %s%s", cle[:6].hex(" "),
+                         " (ciphered by the ROM, A5 XOR undone, re-ciphered by the bridge at the air fn)"
                          if self.rom.dechiffres else "")
             return bursts
         if time.monotonic() - self.rom_attente[1] < ROM_ATTENTE:
@@ -232,12 +232,12 @@ class UplinkDsp(Uplink):
             # without scheduling anything. What goes on air is the ROM burst of calypso_tx_rom.
             self.stats.xcch_shadow_ko += 1
             if self.stats.xcch_shadow_ko <= 5:
-                log.info("xCCH montant : %s sans bursts 0x3f8a apres %.0f ms (%d bloc(s) sans CRC) -- "
-                         "non recode (PONT_UL_RAW=1, l'antenne a ceux de calypso_tx_rom)",
+                log.info("uplink xCCH: %s without 0x3f8a bursts after %.0f ms (%d block(s) without CRC) -- "
+                         "not re-coded (PONT_UL_RAW=1, the antenna gets those of calypso_tx_rom)",
                          cle[:6].hex(" "), ROM_ATTENTE * 1000, ko)
             return []
         if self.stats.xcch_ul_hote < 5:
-            log.info("xCCH montant : pas de bursts ROM pour %s apres %.0f ms (%d bloc(s) ROM sans CRC), code par l'hote",
+            log.info("uplink xCCH: no ROM bursts for %s after %.0f ms (%d ROM block(s) without CRC), coded by the host",
                      cle[:6].hex(" "), ROM_ATTENTE * 1000, ko)
         return Uplink._bursts_xcch(self, l2)
 
@@ -260,22 +260,22 @@ class UplinkDsp(Uplink):
         if PDCH_FILTRE and self.dedicated.pdch() is not None:
             self.stats.pdtch_ul_vu_hote += 1
             if self.stats.pdtch_ul_vu_hote == 1:
-                log.info("voie SDCCH montante : blocs du PDCH TS%d (GPRS) jetes, la ROM les emet (PONT_PDCH_FILTRE=0 pour les garder)",
+                log.info("uplink SDCCH path: PDCH TS%d (GPRS) blocks dropped, the ROM sends them (PONT_PDCH_FILTRE=0 to keep them)",
                          self.dedicated.pdch())
             return True
         if self.tch.active_tn() is not None:
             if gsm.rr_message_type(l2)[1] == RR_ASSIGNMENT_FAILURE:
-                self.tch.abandon("ASSIGNMENT FAILURE sur le SDCCH")
+                self.tch.abandon("ASSIGNMENT FAILURE on the SDCCH")
             elif self.tch.is_open():
                 age = self.tch.open_age()
                 if age is not None and age < TCH_ABANDON_GRACE:
                     self._grace_vus = getattr(self, "_grace_vus", 0) + 1
                     if self._grace_vus <= 5:
-                        log.info("bloc montant sur le SDCCH %.2f s apres l'ouverture du TCH : ignore (delai de grace "
-                                 "%.1f s, PONT_TCH_ABANDON_GRACE) -- queue de la tache SDCCH du firmware, pas un retour",
+                        log.info("uplink block on the SDCCH %.2f s after the TCH opened: ignored (grace delay "
+                                 "%.1f s, PONT_TCH_ABANDON_GRACE) -- tail of the firmware's SDCCH task, not a return",
                                  age, TCH_ABANDON_GRACE)
                     return False
-                self.tch.abandon("bloc montant du mobile sur le SDCCH")
+                self.tch.abandon("uplink block from the mobile on the SDCCH")
         return False
 
     def _poll_release(self):
@@ -289,15 +289,15 @@ class UplinkDsp(Uplink):
         (Downlink._signalling), or with a new Kc."""
         active = self.dedicated.plan() is not None
         if self.ded_active and not active:
-            reason = "canal libere par le mobile"
+            reason = "channel released by the mobile"
         elif self.tch.release_overdue(RELEASE_FALLBACK):
-            reason = "CHANNEL RELEASE sans liberation du mobile depuis %ds" % RELEASE_FALLBACK
+            reason = "CHANNEL RELEASE without release by the mobile for %ds" % RELEASE_FALLBACK
         else:
             self.ded_active = active
             return
         self.ded_active = active
         self.tch.close(reason)
-        log.info("%s : Kc garde jusqu'a la prochaine IMMEDIATE ASSIGNMENT (la BTS chiffre encore)", reason)
+        log.info("%s: Kc kept until the next IMMEDIATE ASSIGNMENT (the BTS still ciphers)", reason)
 
     def run(self):
         """PONT_UL_RAW=1: see RomTxRing. The _poll_* keep running (logs, stats, state), their
@@ -314,7 +314,7 @@ class UplinkDsp(Uplink):
         n = {0: 0, 1: 0, 2: 0}
         attente = collections.deque()
         perdus = 0
-        log.info("PONT_UL_RAW=1 : bursts montants = ceux de la ROM (%s), emis a son fn%s, sans codage ni A5 cote hote",
+        log.info("PONT_UL_RAW=1: uplink bursts = the ROM's (%s), sent at its fn%s, no host-side coding or A5",
                  SB_TX_ROM, (" %+d" % UL_RAW_DECAL) if UL_RAW_DECAL else "")
 
         def tn_dedie():
@@ -378,8 +378,8 @@ class UplinkDsp(Uplink):
                 st.tch_ul_rom_jete[classe_tch(fn, bits)] += 1
                 tch_rom[0] += 1          # see UL_RAW_TCH: the TCH is coded and emitted by the host
                 if tch_rom[0] == 1:
-                    log.info("bursts ROM du TCH TS%d non emis : FACCH, SACCH/T et parole restent codes par l'hote "
-                             "(PONT_UL_RAW_TCH=0), la ROM n'emet pas encore la parole montante", tn)
+                    log.info("ROM bursts of TCH TS%d not sent: FACCH, SACCH/T and speech stay host-coded "
+                             "(PONT_UL_RAW_TCH=0), the ROM does not send uplink speech yet", tn)
                 return
             self.tx_rom.trx.send_ul(tn, (fn + UL_RAW_DECAL) % gsm.HYPERFRAME, list(bits), False)
             if typ == 1:
@@ -389,13 +389,13 @@ class UplinkDsp(Uplink):
                     from ..downlink import noter_rach
                     noter_rach(ra)
                 elif st.air_rom_rach <= 3:
-                    log.info("RACH ROM #%d : RA illisible (BSIC %d), IMM ASS choisie sans reference", seq, self.cfg.bsic)
+                    log.info("RACH ROM #%d: unreadable RA (BSIC %d), IMM ASS chosen without reference", seq, self.cfg.bsic)
             elif tn == self.dedicated.pdch():
                 st.air_rom_pdch += 1
             elif typ not in (1, 2):
                 st.air_rom_inconnu += 1      # B4: emitted anyway (neighbour of the PDCH in GPRS)
                 if st.air_rom_inconnu <= 5:
-                    log.info("burst ROM #%d de type inconnu (%d) : TS%d fn=%u fn%%13=%d fn%%26=%d", seq, typ, tn,
+                    log.info("ROM burst #%d of unknown type (%d): TS%d fn=%u fn%%13=%d fn%%26=%d", seq, typ, tn,
                              fn, fn % 13, fn % 26)
             elif est_tch:
                 st.air_rom_tch += 1
@@ -406,12 +406,12 @@ class UplinkDsp(Uplink):
                 st.a5_ul_rom += 1
             if typ != 1 and self.dedicated.tch() is not None and tn not in tch_dit:
                 tch_dit.add(tn)
-                log.info("bursts ROM sur le TCH TS%d : parole, FACCH et SACCH montants codes et chiffres par la ROM", tn)
+                log.info("ROM bursts on TCH TS%d: uplink speech, FACCH and SACCH coded and ciphered by the ROM", tn)
             k = typ if typ in n else 0
             n[k] += 1
             total = n[0] + n[1] + n[2]
             if total <= 5 or (typ == 1 and n[1] <= 5) or total % 1000 == 0:
-                log.info("burst ROM #%d %s fn=%u TS%d%s (RACH %d, NB %d, ? %d, attendus %d, perdus %d)", seq,
+                log.info("ROM burst #%d %s fn=%u TS%d%s (RACH %d, NB %d, ? %d, pending %d, lost %d)", seq,
                          "RACH" if typ == 1 else "NB" if typ == 2 else "?", fn, tn,
                          (" TSC%d" % tsc) if typ == 2 else "", n[1], n[2], n[0], len(attente), perdus)
 
@@ -444,7 +444,7 @@ class UplinkDsp(Uplink):
                         attente.popleft()
                         perdus += 1
                         if perdus <= 5:
-                            log.info("burst ROM #%d fn=%u (TSC %d) : aucun canal dedie connu apres 300 ms, perdu", seq, fn, tsc)
+                            log.info("ROM burst #%d fn=%u (TSC %d): no known dedicated channel after 300 ms, lost", seq, fn, tsc)
                     else:
                         break
             for seq, fn, typ, tsc, bits, a5 in ring.nouveaux():

@@ -62,21 +62,21 @@ class DedicatedDsp(Dedicated):
             self._pdch = None
         elif genre == DCCH_PDCH:
             self._pdch = tn
-            log.info("canal dedie : PDCH TS=%d annonce par le firmware (GPRS)", tn)
+            log.info("dedicated channel: PDCH TS=%d announced by the firmware (GPRS)", tn)
         elif genre in (DCCH_TCH_F, DCCH_TCH_H):
             self._pdch_quitte("TCH", tn)
             self._tch = (genre, ss, tn)
             if self._value is None:
-                log.info("canal dedie : TCH/%s TS=%d SS=%d annonce par le firmware, aucun SDCCH connu",
+                log.info("dedicated channel: TCH/%s TS=%d SS=%d announced by the firmware, no known SDCCH",
                          "F" if genre == DCCH_TCH_F else "H", tn, ss)
             else:
-                log.info("canal dedie : TCH/%s TS=%d SS=%d annonce par le firmware "
-                         "(SDCCH SS=%d TS=%d garde pour un retour)",
+                log.info("dedicated channel: TCH/%s TS=%d SS=%d announced by the firmware "
+                         "(SDCCH SS=%d TS=%d kept for a return)",
                          "F" if genre == DCCH_TCH_F else "H", tn, ss, self._value[1], self._value[2])
         else:
             self._pdch_quitte("SDCCH", tn)
             if self._tch is not None:
-                log.info("canal dedie : le firmware a quitte le TCH TS=%d pour le SDCCH SS=%d TS=%d",
+                log.info("dedicated channel: the firmware left TCH TS=%d for SDCCH SS=%d TS=%d",
                          self._tch[2], ss, tn)
             self._tch = None
             self._value = (genre & 1, ss, tn)
@@ -87,7 +87,7 @@ class DedicatedDsp(Dedicated):
         # otherwise tn_dedie() (dsp/uplink.py), which tests the PDCH first, would send the
         # ROM bursts of the dedicated channel on the PDCH's TS.
         if self._pdch is not None:
-            log.info("canal dedie : le firmware a quitte le PDCH TS=%d pour un %s TS=%d", self._pdch, quoi, tn)
+            log.info("dedicated channel: the firmware left PDCH TS=%d for a %s TS=%d", self._pdch, quoi, tn)
             self._pdch = None
 
     def tch(self):

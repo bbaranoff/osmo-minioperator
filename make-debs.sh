@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 Bastien Baranoff
 # SPDX-License-Identifier: GPL-3.0-or-later
-# make-debs.sh - fabrique les .deb de qosmo et c54x_exe a partir de l'image
-# osmo-minioperator construite depuis les sources (BUILD_DEB=1) :
+# make-debs.sh - builds the qosmo and c54x_exe .debs from the osmo-minioperator
+# image built from source (BUILD_DEB=1):
 #
 #   sudo docker build -t osmo-minioperator --build-arg BUILD_DEB=1 .
-#   sudo ./make-debs.sh [dossier]          # defaut : ./debs
+#   sudo ./make-debs.sh [directory]        # default: ./debs
 #
-# Les paquets reprennent les chemins attendus par c54x_exe/run.sh
-# (/opt/GSM/qosmo/build/qemu-system-arm, /opt/GSM/c54x_exe/...). La mask-ROM
-# du DSP (code TI, hors GPL) n'est PAS dans le paquet c54x_exe : elle reste
-# telechargee et verifiee par rom/fetch-rom.sh au build de l'image.
+# The packages use the paths expected by c54x_exe/run.sh
+# (/opt/GSM/qosmo/build/qemu-system-arm, /opt/GSM/c54x_exe/...). The DSP
+# mask ROM (TI code, not GPL) is NOT in the c54x_exe package: it is still
+# downloaded and verified by rom/fetch-rom.sh when the image is built.
 set -eu
 IMG="${IMG:-osmo-minioperator}"
 OUT="$(realpath -m "${1:-debs}")"
@@ -19,11 +19,11 @@ mkdir -p "$OUT"
 docker run --rm --entrypoint bash -v "$OUT:/out" "$IMG" -c '
 set -eu
 [ -x /opt/GSM/qosmo/build/qemu-system-arm ] && [ -d /opt/GSM/c54x_exe/.git ] \
-    || { echo "image sans les sources : la construire avec --build-arg BUILD_DEB=1" >&2; exit 1; }
-version() {   # 0.git<date du commit>.<sha> (pas de ~ : GitHub le renomme dans les assets)
+    || { echo "image without the sources: build it with --build-arg BUILD_DEB=1" >&2; exit 1; }
+version() {   # 0.git<commit date>.<sha> (no ~: GitHub renames it in the assets)
     git -C "$1" log -1 --format="0.git%cd.%h" --date=format:%Y%m%d
 }
-control() {   # control <dir> <nom> <version> <depends> <description>
+control() {   # control <dir> <name> <version> <depends> <description>
     install -d "$1/DEBIAN"
     cat > "$1/DEBIAN/control" <<EOF
 Package: $2
@@ -48,25 +48,25 @@ install -m755 /usr/local/bin/qosmo $P/usr/local/bin/
 cp $Q/COPYING $P/usr/share/doc/qosmo/copyright
 echo "https://github.com/bbaranoff/qosmO commit $(git -C $Q rev-parse HEAD)" > $P/usr/share/doc/qosmo/SOURCE
 control $P qosmo "$V" "libglib2.0-0t64, libpixman-1-0, libslirp0, libusb-1.0-0, zlib1g" \
-    "QEMU Calypso (qosmo) : ARM du telephone + layer1, cible arm-softmmu"
+    "QEMU Calypso (qosmo): phone ARM + layer1, arm-softmmu target"
 dpkg-deb --root-owner-group -Zxz --build $P /out/ >/dev/null
 
-# ── c54x_exe : DSP TMS320C54x hors QEMU ──────────────────────────────────────
+# ── c54x_exe: TMS320C54x DSP outside QEMU ────────────────────────────────────
 C=/opt/GSM/c54x_exe; V=$(version $C); P=/tmp/c54x-exe_${V}_amd64
 install -d $P$C $P/usr/share/doc/c54x-exe
-# Fichiers du depot (calypso_dsp.Registers.bin compris : etat des registres au
-# reset, pas de la ROM) ; les sections ROM ecrites par fetch-rom.sh en sont absentes.
+# Repo files (calypso_dsp.Registers.bin included: register state at reset,
+# not ROM); the ROM sections written by fetch-rom.sh are left out.
 git -C $C ls-files -z | tar -C $C --null -T - -cf - | tar -C $P$C -xf -
 install -m755 $C/c54x_exe $P$C/
 cp $C/LICENSE $P/usr/share/doc/c54x-exe/copyright
 echo "https://github.com/bbaranoff/c54x_exe commit $(git -C $C rev-parse HEAD)" > $P/usr/share/doc/c54x-exe/SOURCE
 control $P c54x-exe "$V" "libosmocore22, libosmogsm20, libosmocodec4, libosmocoding0, libtalloc2, python3, curl" \
-    "Emulateur DSP TI C54x du Calypso (c54x_exe), sans la mask-ROM TI (rom/fetch-rom.sh)"
+    "Calypso TI C54x DSP emulator (c54x_exe), without the TI mask ROM (rom/fetch-rom.sh)"
 dpkg-deb --root-owner-group -Zxz --build $P /out/ >/dev/null
 
-# Aucune ROM TI dans les paquets (Registers.bin : pas de la ROM).
+# No TI ROM in the packages (Registers.bin: not ROM).
 for d in /out/*.deb; do
-    ! dpkg-deb -c "$d" | grep -vF Registers.bin | grep -qE "calypso_dsp[^/]*\.(bin|txt)$" || { echo "ROM dans $d" >&2; exit 1; }
+    ! dpkg-deb -c "$d" | grep -vF Registers.bin | grep -qE "calypso_dsp[^/]*\.(bin|txt)$" || { echo "ROM in $d" >&2; exit 1; }
 done
 chown "'"$(id -u):$(id -g)"'" /out/*.deb
 '

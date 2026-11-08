@@ -56,12 +56,12 @@ def micro(ul):
     cmd = ["parec", f"--device={SOURCE}", "--format=s16le", f"--rate={TAUX}", "--channels=1",
            "--raw", "--latency-msec=20"]
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-    journal("micro :", " ".join(cmd))
+    journal("mic:", " ".join(cmd))
     w = struct.unpack_from("<I", ul, 0)[0]
     while True:
         bloc = p.stdout.read(320)                     # 20 ms
         if not bloc:
-            journal("parec s'est arrete"); return
+            journal("parec stopped"); return
         for (ech,) in struct.iter_unpack("<h", bloc[: len(bloc) // 2 * 2]):
             struct.pack_into("<h", ul, 8 + 2 * (w % N), ech)
             w = (w + 1) & 0xFFFFFFFF
@@ -88,7 +88,7 @@ def haut_parleur(dl):
     cmd = ["pacat", "--playback", f"--device={SINK}", "--format=s16le", f"--rate={TAUX}",
            "--channels=1", "--raw", "--latency-msec=60"]
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-    journal("haut-parleur :", " ".join(cmd))
+    journal("speaker:", " ".join(cmd))
     fd = p.stdin.fileno()
     cible = DL_CIBLE
     lu = None
@@ -120,8 +120,8 @@ def haut_parleur(dl):
                 p.stdin.write(out); p.stdin.flush()
         time.sleep(0.01)
         if time.monotonic() - t_journal > 30:
-            journal(f"DL : {n_total} echantillons du DSP, {n_silence} de silence, {n_jete} jetes (retard), "
-                    f"tuyau vers pacat <= {file_max * 1000 // TAUX} ms (cible {cible * 1000 // TAUX} ms) en 30 s")
+            journal(f"DL: {n_total} samples from the DSP, {n_silence} of silence, {n_jete} dropped (late), "
+                    f"pipe to pacat <= {file_max * 1000 // TAUX} ms (target {cible * 1000 // TAUX} ms) in 30 s")
             n_total = n_silence = n_jete = file_max = 0; t_journal = time.monotonic()
 
 
@@ -145,7 +145,7 @@ def micro_reel():
     materiel = [s for s in sources if s.startswith("alsa_input") and not s.endswith(".monitor")]
     micro = "osmo_mic_ec" if "osmo_mic_ec" in sources else (materiel[0] if materiel else None)
     if not micro:
-        journal("micro reel : aucune entree materielle")
+        journal("real mic: no hardware input")
         return
     volume = os.environ.get("VSP_MICRO_VOLUME", os.environ.get("EC_MIC_VOLUME", "25%"))
     for s in dict.fromkeys(materiel[:1] + [micro]):
@@ -157,13 +157,13 @@ def micro_reel():
     if not any(f"source={micro} " in l + " " for l in boucles):
         pactl("load-module", "module-loopback", f"source={micro}", "sink=gsm_mic",
               "sink_dont_move=true", "source_dont_move=true", "latency_msec=40")
-        journal(f"micro reel : bouclage {micro} -> gsm_mic pose")
-    journal(f"micro reel : {micro} -> gsm_mic (sourdine levee, volume {volume} si a 0)")
+        journal(f"real mic: loopback {micro} -> gsm_mic set up")
+    journal(f"real mic: {micro} -> gsm_mic (unmuted, volume {volume} if it was 0)")
 
 
 def main():
     ul, dl = anneau(SHM_UL), anneau(SHM_DL)
-    journal(f"{SOURCE} -> {SHM_UL} ; {SHM_DL} -> {SINK} ; gigue {GIGUE} echantillons")
+    journal(f"{SOURCE} -> {SHM_UL}; {SHM_DL} -> {SINK}; jitter {GIGUE} samples")
     micro_reel()
     threading.Thread(target=micro, args=(ul,), daemon=True).start()
     haut_parleur(dl)

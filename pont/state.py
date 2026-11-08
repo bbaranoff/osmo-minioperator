@@ -105,7 +105,7 @@ class Tch:
             self.tsc = tsc
             self.open = False
             self._write_cfg(tn, tsc, arfcn, self.seq)
-        log.info("ASSIGNMENT COMMAND : TCH TN=%d TSC=%d ARFCN=%d arme, en attente du mobile", tn, tsc, arfcn)
+        log.info("ASSIGNMENT COMMAND: TCH TN=%d TSC=%d ARFCN=%d armed, waiting for the mobile", tn, tsc, arfcn)
 
     def prove(self, source):
         with self.lock:
@@ -114,7 +114,7 @@ class Tch:
             self.open = True
             self.open_since = time.monotonic()
             tn = self.tn
-        log.info("le mobile est sur le TCH TN=%d (%s) : montant TCH ouvert", tn, source)
+        log.info("the mobile is on TCH TN=%d (%s): uplink TCH open", tn, source)
 
     def release_requested(self, reason):
         with self.lock:
@@ -123,9 +123,9 @@ class Tch:
             self.release_seen = time.monotonic()
             tn = self.tn
         if tn is None:
-            log.info("%s : en attente de la liberation du canal par le mobile", reason)
+            log.info("%s: waiting for the mobile to release the channel", reason)
         else:
-            log.info("%s : TCH TN=%d maintenu jusqu'a la liberation par le mobile", reason, tn)
+            log.info("%s: TCH TN=%d kept until the mobile releases it", reason, tn)
 
     def release_overdue(self, delay):
         with self.lock:
@@ -141,7 +141,7 @@ class Tch:
             self.open = False
             self.open_since = None
             self._write_cfg(0, 0, 0, 0)
-        log.info("TCH TN=%d ferme (%s)", tn, reason)
+        log.info("TCH TN=%d closed (%s)", tn, reason)
         for cb in self.on_close:
             cb()
 

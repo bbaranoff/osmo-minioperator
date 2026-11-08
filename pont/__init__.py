@@ -23,10 +23,10 @@ def _guarded(name, fn):
         while True:
             try:
                 fn()
-                log.warning("thread %s termine", name)
+                log.warning("thread %s ended", name)
                 return
             except Exception:
-                log.exception("thread %s : exception, relance dans 1 s", name)
+                log.exception("thread %s: exception, restarting in 1 s", name)
                 time.sleep(1)
     return threading.Thread(target=run, name=name, daemon=True)
 
@@ -52,13 +52,13 @@ def main(argv=None):
     uplink = Uplink(cfg, clock, stats, dedicated, tch, transmitter, feeder, cipher)
     scheduler = TchScheduler(cfg, clock, stats, tch, uplink, transmitter)
 
-    log.info("pont TRX : ports %d/%d/%d, ARFCN %d, BSIC %d, avance UL %d trames",
+    log.info("pont TRX : ports %d/%d/%d, ARFCN %d, BSIC %d, UL advance %d frames",
              cfg.trx_base, cfg.trx_base + 1, cfg.trx_base + 2, cfg.arfcn, cfg.bsic, cfg.ul_fn_advance)
     for tn in sorted(timeslots):
         plan = plan_for(timeslots[tn])
-        log.info("TS%d %-12s %s", tn, timeslots[tn], ("plan %s, %d sous-voies" % (plan.name, plan.n_sub)) if plan else "")
-    log.info("QEMU : GSMTAP udp/%d, SCH udp/%d ; tap GSMTAP %s", cfg.gsmtap_port, cfg.sch_port,
-             ("udp/%d" % cfg.tap_port) if cfg.tap else "coupe")
+        log.info("TS%d %-12s %s", tn, timeslots[tn], ("plan %s, %d subchannels" % (plan.name, plan.n_sub)) if plan else "")
+    log.info("QEMU: GSMTAP udp/%d, SCH udp/%d; GSMTAP tap %s", cfg.gsmtap_port, cfg.sch_port,
+             ("udp/%d" % cfg.tap_port) if cfg.tap else "off")
 
     threads = [
         _guarded("ctrl", trx.run_ctrl),

@@ -65,14 +65,14 @@ class Cipher:
                 return
             self._held = None
             self.dl_active = False
-        log.info("Kc lache (%s) : le lien repart en clair", reason)
+        log.info("Kc dropped (%s): the link goes back to clear", reason)
 
     def confirm_dl(self, fn):
         with self._lock:
             if self.dl_active:
                 return
             self.dl_active = True
-        log.info("chiffrement descendant confirme par la BTS (fn=%u)", fn)
+        log.info("downlink ciphering confirmed by the BTS (fn=%u)", fn)
 
     def apply(self, burst, fn, uplink):
         key = self.current()

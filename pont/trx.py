@@ -125,7 +125,7 @@ class Clock:
             return
         if not self._dit:
             self._dit = True
-            log.info("horloge asservie au DSP (%s, avance visee %d trames, ralentissement max x%g)",
+            log.info("clock slaved to the DSP (%s, target advance %d frames, max slowdown x%g)",
                      HORLOGE, self._avance, HORLOGE_MAX)
         t_prec, dsp_prec = self._t_prec, self._dsp_prec
         self._t_prec, self._dsp_prec = now, dsp
@@ -217,13 +217,13 @@ class Trx:
             parts = req.split()
             cmd = parts[1] if len(parts) > 1 else ""
             args = (" " + " ".join(parts[2:])) if len(parts) > 2 else ""
-            # osmo-bts-trx attend la puissance nominale (dBm) dans la reponse :
+            # osmo-bts-trx expects the nominal power (dBm) in the response:
             # "RSP NOMTXPOWER 0" seul -> "Failed to parse NOMTXPOWER response" -> exit.
             rsp_args = (" " + os.environ.get("PONT_NOMTXPOWER", "23")) if cmd == "NOMTXPOWER" else args
             self.sk_ctrl.sendto(("RSP %s 0%s" % (cmd, rsp_args)).encode() + b"\0", addr)
             if self.bts_clck is None:
                 self.bts_clck = (addr[0], self.cfg.trx_base + 100)
-                log.info("BTS %s : horloge armee vers le port %d", addr[0], self.bts_clck[1])
+                log.info("BTS %s: clock armed to port %d", addr[0], self.bts_clck[1])
             if cmd not in ("SETPOWER", "NOHANDOVER"):
                 log.info("CTRL %s%s", cmd, args)
 
@@ -268,10 +268,10 @@ class Trx:
                 if lent != self._clck_lent:
                     self._clck_lent = lent
                     if lent:
-                        log.info("IND CLOCK : horloge lente (x%.1f), on attend la reprise de la BTS entre deux IND "
-                                 "(pause max %d trames)", k, pause_max)
+                        log.info("IND CLOCK: slow clock (x%.1f), waiting for the BTS to resume between two INDs "
+                                 "(max pause %d frames)", k, pause_max)
                     else:
-                        log.info("IND CLOCK : horloge x%.1f, retour a la periode fixe de %d trames", k, periode)
+                        log.info("IND CLOCK: clock x%.1f, back to the fixed period of %d frames", k, periode)
                 if not lent:
                     envoyer = attente >= periode
                     avance = 0
@@ -295,8 +295,8 @@ class Trx:
                             fn_ind = (fn_trx + av_bts - CLCK_PAUSE_PLAFOND) % gsm.HYPERFRAME
                             self._clck_bornees = getattr(self, "_clck_bornees", 0) + 1
                             if self._clck_bornees <= 20 or self._clck_bornees % 100 == 0:
-                                log.warning("IND CLOCK : BTS %d trames devant, pause bornee a %d (fn %u au lieu de %u, "
-                                            "%d fois)", av_bts, CLCK_PAUSE_PLAFOND, fn_ind, fn_trx, self._clck_bornees)
+                                log.warning("IND CLOCK: BTS %d frames ahead, pause capped at %d (fn %u instead of %u, "
+                                            "%d times)", av_bts, CLCK_PAUSE_PLAFOND, fn_ind, fn_trx, self._clck_bornees)
                     self.sk_clck.sendto(("IND CLOCK %u" % fn_ind).encode() + b"\0", self.bts_clck)
                     self._clck_t = now
                     self._clck_vu = vu
@@ -320,7 +320,7 @@ class Trx:
         self._clck_n = getattr(self, "_clck_n", 0) + 1
         if avance > CLCK_PAUSE_MAX + 10 and getattr(self, "_clck_longues", 0) < 20:
             self._clck_longues = getattr(self, "_clck_longues", 0) + 1
-            log.warning("IND CLOCK : la BTS avait %d trames d'avance (pause demandee > %d, limite BTS 50)",
+            log.warning("IND CLOCK: the BTS was %d frames ahead (requested pause > %d, BTS limit 50)",
                         avance, CLCK_PAUSE_MAX)
 
     def run_data(self, on_burst):

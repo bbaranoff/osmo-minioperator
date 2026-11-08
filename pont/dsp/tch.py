@@ -27,8 +27,8 @@ class TchDsp(Tch):
             self.tsc = tsc
             self.open = False
             self._write_cfg(tn, tsc, arfcn, self.seq)
-        log.info("ASSIGNMENT COMMAND : TCH TN=%d TSC=%d ARFCN=%d annonce au DSP, "
-                 "bascule du BSP a la premiere tache TCH du firmware", tn, tsc, arfcn)
+        log.info("ASSIGNMENT COMMAND: TCH TN=%d TSC=%d ARFCN=%d announced to the DSP, "
+                 "BSP switches at the firmware's first TCH task", tn, tsc, arfcn)
 
     def abandon(self, reason):
         """The mobile stayed (or came back) on the SDCCH: withdraw the announcement.
@@ -46,6 +46,6 @@ class TchDsp(Tch):
             self.open_since = None
             self.release_seen = None
             self._write_cfg(0, 0, 0, self.seq)
-        log.info("TCH TN=%d abandonne (%s) : retour sur le SDCCH", tn, reason)
+        log.info("TCH TN=%d abandoned (%s): back to the SDCCH", tn, reason)
         for cb in self.on_close:
             cb()

@@ -140,13 +140,13 @@ class Uplink(threading.Thread):
         # Any other block is discarded here, octets logged to find its source.
         # PONT_FACCH_TOUT=1 restores unfiltered sending.
         if l2[0] not in (0x01, 0x03) and os.environ.get("PONT_FACCH_TOUT", "0") != "1":
-            log.info("FACCH montante ECARTEE (pas une adresse SAPI 0) : %s",
+            log.info("uplink FACCH DISCARDED (not a SAPI 0 address): %s",
                      bytes(l2[:gsm.MACBLOCK_LEN]).hex(" "))
             return
         # Non-I frames (SABM, RR, REJ, DISC...) are rare: they are logged, as
         # is the first FACCH of each TCH.
         if (l2[1] & 0x01) or ouverture:
-            log.info("FACCH montante %s : %s", "non-I" if l2[1] & 0x01 else "I (ouverture)",
+            log.info("uplink FACCH %s: %s", "non-I" if l2[1] & 0x01 else "I (opening)",
                      bytes(l2[:gsm.MACBLOCK_LEN]).hex(" "))
         with self.q_lock:
             self.q_facch.append(bytes(l2[:gsm.MACBLOCK_LEN]))
@@ -198,7 +198,7 @@ class Uplink(threading.Thread):
         ded = self.dedicated.plan()
         if ded is None:
             if time.monotonic() - depuis > SDCCH_ATTENTE:
-                log.info("SDCCH montant : aucun canal dedie apres %.1f s, bloc abandonne",
+                log.info("uplink SDCCH: no dedicated channel after %.1f s, block dropped",
                          SDCCH_ATTENTE)
                 self.sdcch_attente = None
             return
@@ -292,7 +292,7 @@ class Uplink(threading.Thread):
             self._queue_facch(l2)
             return
         ouverture = not self.tch.is_open()
-        self.tch.prove("FACCH montante%s" % (", ASSIGNMENT COMPLETE" if gsm.rr_message_type(l2)[1] == gsm.RR_ASSIGNMENT_COMPLETE else ""))
+        self.tch.prove("uplink FACCH%s" % (", ASSIGNMENT COMPLETE" if gsm.rr_message_type(l2)[1] == gsm.RR_ASSIGNMENT_COMPLETE else ""))
         self._queue_facch(l2, ouverture)
 
     def _poll_sacch(self):
@@ -305,9 +305,9 @@ class Uplink(threading.Thread):
     def _poll_release(self):
         active = self.dedicated.plan() is not None
         if self.ded_active and not active:
-            reason = "canal libere par le mobile"
+            reason = "channel released by the mobile"
         elif self.tch.release_overdue(RELEASE_FALLBACK):
-            reason = "CHANNEL RELEASE sans liberation du mobile depuis %ds" % RELEASE_FALLBACK
+            reason = "CHANNEL RELEASE without release by the mobile for %ds" % RELEASE_FALLBACK
         else:
             self.ded_active = active
             return

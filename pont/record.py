@@ -58,14 +58,14 @@ class Direction:
             os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)
             st = os.statvfs(os.path.dirname(self.path) or ".")
             if st.f_bavail * st.f_frsize < self.min_free:
-                log.warning("enregistrement %s coupe : moins de %d Mo libres", self.name, self.min_free // 1048576)
+                log.warning("recording %s off: less than %d MB free", self.name, self.min_free // 1048576)
                 return False
             self.fh = open(self.path, "wb", buffering=1024 * 1024)
         except OSError as e:
-            log.warning("enregistrement %s impossible (%s)", self.name, e)
+            log.warning("recording %s impossible (%s)", self.name, e)
             return False
         self.bytes = 0
-        log.info("enregistrement %s -> %s (buffer roulant de %d Mo)", self.name, self.path, self.max_bytes // 1048576)
+        log.info("recording %s -> %s (rolling buffer of %d MB)", self.name, self.path, self.max_bytes // 1048576)
         return True
 
     def modulate(self, burst):
@@ -135,7 +135,7 @@ class Direction:
             self.fh.write(octets)
         except OSError as e:
             # The file is cut, not the FIFO: see the method header.
-            log.warning("enregistrement %s : ecriture echouee (%s), coupe", self.name, e)
+            log.warning("recording %s: write failed (%s), off", self.name, e)
             try:
                 self.fh.close()
             except OSError:
@@ -163,8 +163,8 @@ class Recorder(threading.Thread):
         taps = g / g.sum()
         max_bytes = cfg.record_max_mb * 1024 * 1024
         min_free = cfg.record_min_free_mb * 1024 * 1024
-        self.dl = Direction("descendant", cfg.record_dl_path, cfg.record_dl_fifo, max_bytes, min_free, osr, taps)
-        self.ul = Direction("montant", cfg.record_ul_path, cfg.record_ul_fifo, max_bytes, min_free, osr, taps)
+        self.dl = Direction("downlink", cfg.record_dl_path, cfg.record_dl_fifo, max_bytes, min_free, osr, taps)
+        self.ul = Direction("uplink", cfg.record_ul_path, cfg.record_ul_fifo, max_bytes, min_free, osr, taps)
         self.ul.off = not cfg.record_ul
 
     def feed_dl(self, fn, tn, burst):
@@ -178,14 +178,14 @@ class Recorder(threading.Thread):
         self.ul.restart = True
 
     def summary(self):
-        return " | IQ dl=%dtr/%dbu ul=%dtr/%dbu fifo_drop=%d/%d" % (
+        return " | IQ dl=%dfr/%dbu ul=%dfr/%dbu fifo_drop=%d/%d" % (
             self.dl.n_frames, self.dl.n_bursts, self.ul.n_frames, self.ul.n_bursts,
             self.dl.n_fifo_drop, self.ul.n_fifo_drop)
 
     def run(self):
         osr = self.cfg.record_osr
         if osr % 4:
-            log.warning("enregistrement refuse : OSR=%d doit etre multiple de 4", osr)
+            log.warning("recording refused: OSR=%d must be a multiple of 4", osr)
             return
         # A direction whose file cannot be opened (space, permissions) keeps its
         # FIFO: it is switched off only if it has no FIFO to serve either.

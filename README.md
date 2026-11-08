@@ -74,7 +74,7 @@ sudo ./docker-run.sh
 ```
 
 Par défaut, qosmo et c54x_exe sont installés depuis les `.deb` de la release
-[`debs-2026-11-08`](https://github.com/bbaranoff/osmo-minioperator/releases/tag/debs-2026-11-08)
+[`debs-2026-11-08-en`](https://github.com/bbaranoff/osmo-minioperator/releases/tag/debs-2026-11-08-en)
 (SHA-256 vérifiés dans le `Dockerfile`, ~2 min de build). La mask-ROM TI du DSP n'y est pas :
 `rom/fetch-rom.sh` la télécharge et la vérifie au build, dans les deux modes.
 
@@ -266,10 +266,9 @@ ci-dessous, lancée comme `docker-run.sh` (dont `SYS_PTRACE`) : LU ACCEPT, 2 app
 (`./verif.sh`), voix descendante (vocodeur ROM) et montante (1 kHz renvoyé par l'écho), SMS dans les
 deux sens (téléphone → 100101 et VTY du MSC → téléphone, rangés dans `~/.osmocom/bb/sms.txt`),
 `harvard.sh stop` / `go` avec registres et désassemblage de la ROM à PC.
-Les `.deb` de la release `debs-2026-11-08` sont tirés de cette image (`./make-debs.sh`).
-L'image par défaut, construite depuis ces `.deb` (`sudo docker build -t osmo-minioperator .`), passe aussi
-`./run-dsp.sh && ./verif.sh` lancée par `sudo ./docker-run.sh` (audio de l'hôte) : LU, 2 appels sur 2, voix
-dans les deux sens (le 2e appel établi à la 2e tentative, que `verif.sh` prévoit).
+Les `.deb` de la release `debs-2026-11-08-en` sont tirés de cette image (`./make-debs.sh`).
+L'image par défaut, construite depuis ces `.deb` (`sudo docker build -t osmo-minioperator .`), est à revérifier
+après publication de la release (`./run-dsp.sh && ./verif.sh` lancée par `sudo ./docker-run.sh`).
 Vérification précédente : commit [`33cc0f2`](https://github.com/bbaranoff/osmo-minioperator/commit/33cc0f2), 2026-10-29
 (détail : [Tests](#tests)). `install.sh` (natif) n'est pas couvert.
 
@@ -277,8 +276,8 @@ Les dépôts compilés au build sont figés par `git checkout` (Dockerfile et `i
 
 | Dépôt | Commit |
 |---|---|
-| [qosmo](https://github.com/bbaranoff/qosmo) | `388b57575efbf4ecfdce83dd04617c3bc8bdf00a` |
-| [c54x_exe](https://github.com/bbaranoff/c54x_exe) | `0a7347d17c629d60457d99670ff4578214d86559` |
+| [qosmo](https://github.com/bbaranoff/qosmo) | `9e18bf9e5574ae2d277d84de787208ed7aa7f6e2` |
+| [c54x_exe](https://github.com/bbaranoff/c54x_exe) | `dadc7c73d6294dfafede78cb3774311313a7111d` |
 | [firmware](https://github.com/bbaranoff/firmware) | `cb97f3f6a071726b52b6c7fd88f096b0d5bbfb48` |
 | [osmocom-bb](https://gitea.osmocom.org/phone-side/osmocom-bb) | `eac4eed1eff1003517fbc3e48c360a525707c4ab` |
 

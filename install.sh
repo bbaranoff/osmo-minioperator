@@ -21,8 +21,8 @@ OSMO_OBS=${OSMO_OBS:-https://downloads.osmocom.org/packages/osmocom:/latest/xUbu
 OSMO_ASC_URL=${OSMO_ASC_URL:-https://obs.osmocom.org/projects/osmocom/public_key}
 OSMOCOM_BB_REF=${OSMOCOM_BB_REF:-eac4eed1}
 # Pinned commits (verified: LU + ROM voice).
-QOSMO_REF=${QOSMO_REF:-cc9c9c02ed0cab3b4eef7917062923df94e3809e}
-C54X_EXE_REF=${C54X_EXE_REF:-0097a4be162733e0edf6cc2eab2db5110a12bfa4}
+QOSMO_REF=${QOSMO_REF:-9e18bf9e5574ae2d277d84de787208ed7aa7f6e2}
+C54X_EXE_REF=${C54X_EXE_REF:-dadc7c73d6294dfafede78cb3774311313a7111d}
 FIRMWARE_REF=${FIRMWARE_REF:-cb97f3f6a071726b52b6c7fd88f096b0d5bbfb48}
 # DSP ROM 3606 dump (published by FreeCalypso): URLs tried in order
 # (full URLs of the dump); the first one with the right SHA-256 wins.

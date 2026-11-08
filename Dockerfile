@@ -8,7 +8,7 @@
 # commits, then ./make-debs.sh rebuilds the .debs from the image.
 # Global ARGs: each stage redeclares them without a value (an ARG does not cross a FROM).
 ARG BUILD_DEB=0
-ARG DEB_URL=https://github.com/bbaranoff/osmo-minioperator/releases/download/debs-2026-11-08
+ARG DEB_URL=https://github.com/bbaranoff/osmo-minioperator/releases/download/debs-2026-11-08-en
 
 FROM ubuntu:24.04 AS base
 ARG DEBIAN_FRONTEND=noninteractive
@@ -67,10 +67,10 @@ FROM base AS qemu
 ARG ROOT=/opt/GSM
 ARG BUILD_DEB
 ARG DEB_URL
-ARG QOSMO_DEB=qosmo_0.git20261108.388b5757_amd64.deb
-ARG QOSMO_DEB_SHA256=489290ae391cde3f3dbdeea1475330f65cc2cbb434fd4646040378a356edf02c
+ARG QOSMO_DEB=qosmo_0.git20261108.9e18bf9e_amd64.deb
+ARG QOSMO_DEB_SHA256=a5f2879bf0778395c9ba536ab190b2e374daf6264c5816a793fd477dee6036c1
 # Pinned commit (verified: LU + ROM voice).
-ARG QOSMO_REF=388b57575efbf4ecfdce83dd04617c3bc8bdf00a
+ARG QOSMO_REF=9e18bf9e5574ae2d277d84de787208ed7aa7f6e2
 RUN if [ "$BUILD_DEB" = 1 ]; then \
       git clone https://github.com/bbaranoff/qosmO /opt/GSM/qosmo \
       && cd /opt/GSM/qosmo \
@@ -117,14 +117,14 @@ RUN GIT_TERMINAL_PROMPT=0 git clone https://github.com/bbaranoff/firmware /opt/G
 
 # c54x_exe: CFLAGS without -march=native (SIGILL on a CPU other than the build host).
 # Pinned commit (verified: LU + ROM voice).
-ARG C54X_EXE_REF=0a7347d17c629d60457d99670ff4578214d86559
+ARG C54X_EXE_REF=dadc7c73d6294dfafede78cb3774311313a7111d
 # DSP ROM 3606 dump (published by FreeCalypso) + its SHA-256. ROM_MIRRORS: full
 # URLs of the dump, tried in order; the first one with the right SHA-256
 # wins. A single download: fetch-rom.sh then reads the local copy (file://).
 ARG ROM_MIRRORS="https://gist.githubusercontent.com/bbaranoff/ba2746dd4fe6117475d95f791bf7df35/raw/16a4e486776315ecdf6c8972c58e877fa19785c5/calypso_dsp.txt https://raw.githubusercontent.com/bbaranoff/fc-magnetite/main/freecalypso-env/dsp-rom-3606-dump.txt https://www.freecalypso.org/pub/GSM/Calypso/dsp-rom-3606-dump.txt"
 ARG CALYPSO_DSP_SHA256=e35798f50fd0a29aa61cd53e417c010d7f172582c7bc055211daab8af1e05470
-ARG C54X_DEB=c54x-exe_0.git20261108.0a7347d_amd64.deb
-ARG C54X_DEB_SHA256=de3f0b19187c8081bcf9508414e17c41af1ec07b88af4a808c0a350d565f5826
+ARG C54X_DEB=c54x-exe_0.git20261108.dadc7c7_amd64.deb
+ARG C54X_DEB_SHA256=1e9d98ad846ed62e1eb8c6cc8bb68bb23a9810997127d59630e5d1eb2b68f6cb
 RUN if [ "$BUILD_DEB" = 1 ]; then \
       git clone https://github.com/bbaranoff/c54x_exe /opt/GSM/c54x_exe \
       && cd /opt/GSM/c54x_exe \
